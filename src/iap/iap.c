@@ -214,6 +214,10 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
     switch(lingo) {
     case IAPLingoID_General:
         switch(command) {
+        case IAPGeneralCommandID_RequestIPodSerialNum: {
+            check_ret(iap_platform_get_ipod_serial_num(ctx->platform, response), -IAPAckStatus_ECommandFailed);
+            return IAPGeneralCommandID_ReturnIPodSerialNum;
+        } break;
         case IAPGeneralCommandID_SetUIMode: {
             const struct IAPSetUIModePayload* request_payload = iap_span_read(request, sizeof(*request_payload));
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);

@@ -1,6 +1,8 @@
-#include "span.h"
+#include <string.h>
+
 #include "endian.h"
 #include "macros.h"
+#include "span.h"
 
 const void* iap_span_read(struct IAPSpan* span, size_t count) {
     check_ret(span->size >= count, NULL);
@@ -10,6 +12,13 @@ const void* iap_span_read(struct IAPSpan* span, size_t count) {
 }
 
 void* iap_span_alloc(struct IAPSpan* span, size_t count) __attribute__((alias("iap_span_read")));
+
+IAPBool iap_span_append(struct IAPSpan* span, const void* ptr, size_t size) {
+    void* dest = iap_span_alloc(span, size);
+    check_ret(dest != NULL, iap_false);
+    memcpy(dest, ptr, size);
+    return iap_true;
+}
 
 #define iap_span_template(width)                                                  \
     IAPBool iap_span_peek_##width(struct IAPSpan* span, uint##width##_t* value) { \

@@ -15,6 +15,7 @@ struct IAPSpan {
 
 const void* iap_span_read(struct IAPSpan* span, size_t count);
 void*       iap_span_alloc(struct IAPSpan* span, size_t count);
+IAPBool     iap_span_append(struct IAPSpan* span, const void* ptr, size_t size);
 
 #define iap_span_template(width)                                                 \
     IAPBool iap_span_peek_##width(struct IAPSpan* span, uint##width##_t* value); \

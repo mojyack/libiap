@@ -49,6 +49,7 @@ struct IAPPlatformTrackInfo {
 void*   iap_platform_malloc(void* platform, size_t size);
 void    iap_platform_free(void* platform, void* ptr);
 int     iap_platform_send_hid_report(void* platform, const void* ptr, size_t size);
+IAPBool iap_platform_get_ipod_serial_num(void* platform, struct IAPSpan* serial);
 IAPBool iap_platform_get_play_status(void* platform, struct IAPPlatformPlayStatus* status);
 IAPBool iap_platform_get_volume(void* platform, struct IAPPlatformVolumeStatus* status);
 IAPBool iap_platform_get_power_status(void* platform, struct IAPPlatformPowerStatus* status);

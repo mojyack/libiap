@@ -31,6 +31,12 @@ int iap_platform_send_hid_report(void* platform, const void* ptr, size_t size) {
     return write(fd, ptr, size);
 }
 
+IAPBool iap_platform_get_ipod_serial_num(void* platform, struct IAPSpan* serial) {
+    (void)platform;
+    static const char* serial_num = "000000000000";
+    return iap_span_append(serial, serial_num, sizeof(serial_num));
+}
+
 IAPBool iap_platform_get_play_status(void* platform, struct IAPPlatformPlayStatus* status) {
     (void)platform;
     status->track_total_ms = 10 * 1000;
@@ -117,9 +123,7 @@ IAPBool iap_platform_get_indexed_track_info(void* platform, uint32_t index, stru
     if(info->composer != NULL) {
         constexpr auto     error_value = iap_false;
         static const char* composer    = "DUMMY";
-        const auto         ptr         = iap_span_alloc(info->composer, sizeof(composer));
-        ensure_v(ptr != NULL);
-        memcpy(ptr, composer, sizeof(composer));
+        ensure_v(iap_span_append(info->composer, composer, sizeof(composer)));
     }
     return iap_true;
 }
