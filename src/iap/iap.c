@@ -381,6 +381,11 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
         break;
     case IAPLingoID_ExtendedInterface:
         switch(command) {
+        case IAPExtendedInterfaceCommandID_GetAudiobookSpeed: {
+            alloc_response(IAPRetAudiobookSpeedPayload, payload);
+            payload->speed = IAPIPodStateAudiobookSpeeed_Normal;
+            return IAPExtendedInterfaceCommandID_RetAudiobookSpeed;
+        } break;
         case IAPExtendedInterfaceCommandID_GetIndexedPlayingTrackInfo: {
             const struct IAPExtendedGetIndexedPlayingTrackInfoPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
