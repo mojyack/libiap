@@ -228,6 +228,16 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
         break;
     case IAPLingoID_DisplayRemote:
         switch(command) {
+        case IAPDisplayRemoteCommandID_SetCurrentEQProfileIndex: {
+            const struct IAPSetCurrentEQProfileIndexPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
+            check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
+            print("set current rq profile index=%d", swap_32(request_payload->index));
+
+            alloc_response(IAPIPodAckPayload, payload);
+            payload->status = IAPAckStatus_Success;
+            payload->id     = command;
+            return IAPDisplayRemoteCommandID_IPodAck;
+        } break;
         case IAPDisplayRemoteCommandID_SetRemoteEventNotification: {
             const struct IAPSetRemoteEventNotificationPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
