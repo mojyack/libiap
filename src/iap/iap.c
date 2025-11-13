@@ -256,22 +256,22 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
             const struct IAPGetIPodStateInfoPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
             print("get ipod state info type=0x%02X", request_payload->type);
-#define ret_state_info                     \
-    payload->type = request_payload->type; \
-    return IAPDisplayRemoteCommandID_RetIPodStateInfo;
+            check_ret(response->size >= sizeof(struct IAPIPodStatePayload), -IAPAckStatus_EOutOfResource);
+            ((struct IAPIPodStatePayload*)response->ptr)->type = request_payload->type;
             switch(request_payload->type) {
             case IAPIPodStateType_TrackTimePositionMSec: {
                 struct IAPPlatformPlayStatus status;
                 check_ret(iap_platform_get_play_status(ctx->platform, &status), -IAPAckStatus_ECommandFailed);
                 alloc_response(IAPIPodStateTrackTimePositionMSecPayload, payload);
-                ret_state_info;
+                payload->position_ms = swap_32(status.track_pos_ms);
+                return IAPDisplayRemoteCommandID_RetIPodStateInfo;
             } break;
             case IAPIPodStateType_TrackPlaybackIndex: {
                 struct IAPPlatformPlayStatus status;
                 check_ret(iap_platform_get_play_status(ctx->platform, &status), -IAPAckStatus_ECommandFailed);
                 alloc_response(IAPIPodStateTrackPlaybackIndexPayload, payload);
                 payload->index = swap_32(status.track_index);
-                ret_state_info;
+                return IAPDisplayRemoteCommandID_RetIPodStateInfo;
             } break;
             case IAPIPodStateType_ChapterIndex: {
                 struct IAPPlatformPlayStatus status;
@@ -281,14 +281,14 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
                 /* no chapters */
                 payload->chapter_count = 0;
                 payload->chapter_index = -1;
-                ret_state_info;
+                return IAPDisplayRemoteCommandID_RetIPodStateInfo;
             } break;
             case IAPIPodStateType_PlayStatus: {
                 struct IAPPlatformPlayStatus status;
                 check_ret(iap_platform_get_play_status(ctx->platform, &status), -IAPAckStatus_ECommandFailed);
                 alloc_response(IAPIPodStatePlayStatusPayload, payload);
                 payload->status = status.state; /* TODO: convert enum */
-                ret_state_info;
+                return IAPDisplayRemoteCommandID_RetIPodStateInfo;
             } break;
             case IAPIPodStateType_Volume: {
                 struct IAPPlatformVolumeStatus status;
@@ -296,7 +296,7 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
                 alloc_response(IAPIPodStateVolumePayload, payload);
                 payload->mute_state = status.muted;
                 payload->ui_volume  = status.volume;
-                ret_state_info;
+                return IAPDisplayRemoteCommandID_RetIPodStateInfo;
             } break;
             case IAPIPodStateType_Power: {
                 struct IAPPlatformPowerStatus status;
@@ -304,23 +304,23 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
                 alloc_response(IAPIPodStatePowerPayload, payload);
                 payload->power_state   = status.state; /* TODO: convert enum */
                 payload->battery_level = status.battery_level;
-                ret_state_info;
+                return IAPDisplayRemoteCommandID_RetIPodStateInfo;
             } break;
             case IAPIPodStateType_EQSetting: {
                 alloc_response(IAPIPodStateEQSettingPayload, payload);
                 /* no eq setting support yet */
                 payload->eq_index = 0;
-                ret_state_info;
+                return IAPDisplayRemoteCommandID_RetIPodStateInfo;
             } break;
             case IAPIPodStateType_ShuffleSetting: {
                 alloc_response(IAPIPodStateShuffleSettingPayload, payload);
                 check_ret(iap_platform_get_shuffle_setting(ctx->platform, &payload->shuffle_state), iap_false);
-                ret_state_info;
+                return IAPDisplayRemoteCommandID_RetIPodStateInfo;
             } break;
             case IAPIPodStateType_RepeatSetting: {
                 alloc_response(IAPIPodStateRepeatSettingPayload, payload);
                 check_ret(iap_platform_get_repeat_setting(ctx->platform, &payload->repeat_state), iap_false);
-                ret_state_info;
+                return IAPDisplayRemoteCommandID_RetIPodStateInfo;
             } break;
             case IAPIPodStateType_DateTimeSetting: {
                 struct IAPPlatformTime time;
@@ -331,40 +331,40 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
                 payload->day    = time.day;
                 payload->hour   = time.hour;
                 payload->minute = time.minute;
-                ret_state_info;
+                return IAPDisplayRemoteCommandID_RetIPodStateInfo;
             } break;
             case IAPIPodStateType_AlarmSetting: {
                 alloc_response(IAPIPodStateAlarmSettingPayload, payload);
-                ret_state_info;
+                return IAPDisplayRemoteCommandID_RetIPodStateInfo;
             } break;
             case IAPIPodStateType_BacklightLevel: {
                 alloc_response(IAPIPodStateBacklightLevelPayload, payload);
                 check_ret(iap_platform_get_backlight_level(ctx->platform, &payload->level), iap_false);
-                ret_state_info;
+                return IAPDisplayRemoteCommandID_RetIPodStateInfo;
             } break;
             case IAPIPodStateType_HoldSwitchState: {
                 IAPBool state;
                 check_ret(iap_platform_get_hold_switch_state(ctx->platform, &state), iap_false);
                 alloc_response(IAPIPodStateHoldSwitchStatePayload, payload);
                 payload->state = state;
-                ret_state_info;
+                return IAPDisplayRemoteCommandID_RetIPodStateInfo;
             } break;
             case IAPIPodStateType_SoundCheckState: {
                 alloc_response(IAPIPodStateSoundCheckStatePayload, payload);
                 payload->state = 0; /* no sound check */
-                ret_state_info;
+                return IAPDisplayRemoteCommandID_RetIPodStateInfo;
             } break;
             case IAPIPodStateType_AudiobookSpeeed: {
                 alloc_response(IAPIPodStateAudiobookSpeeedPayload, payload);
                 payload->speed = IAPIPodStateAudiobookSpeeed_Normal;
-                ret_state_info;
+                return IAPDisplayRemoteCommandID_RetIPodStateInfo;
             } break;
             case IAPIPodStateType_TrackTimePositionSec: {
                 struct IAPPlatformPlayStatus status;
                 check_ret(iap_platform_get_play_status(ctx->platform, &status), iap_false);
                 alloc_response(IAPIPodStateTrackTimePositionSecPayload, payload);
                 payload->position_s = swap_32(status.track_pos_ms / 1000);
-                ret_state_info;
+                return IAPDisplayRemoteCommandID_RetIPodStateInfo;
             } break;
             case IAPIPodStateType_AbsoluteVolume: {
                 struct IAPPlatformVolumeStatus status;
@@ -373,23 +373,22 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
                 payload->mute_state      = status.muted;
                 payload->ui_volume       = status.volume;
                 payload->absolute_volume = status.volume;
-                ret_state_info;
+                return IAPDisplayRemoteCommandID_RetIPodStateInfo;
             } break;
             case IAPIPodStateType_TrackCaps: {
                 alloc_response(IAPIPodStateTrackCapsPayload, payload);
                 payload->caps = 0; /* no caps */
-                ret_state_info;
+                return IAPDisplayRemoteCommandID_RetIPodStateInfo;
             } break;
             case IAPIPodStateType_PlaybackEngineContents: {
                 alloc_response(IAPIPodStatePlaybackEngineContentsPayload, payload);
                 payload->count = 0; /* TODO: shoud be supported? */
-                ret_state_info;
+                return IAPDisplayRemoteCommandID_RetIPodStateInfo;
             } break;
             default:
                 warn("invalid request type 0x%02X", request_payload->type);
                 return -IAPAckStatus_EBadParameter;
             }
-#undef ret_state_info
         };
         }
         break;
@@ -404,9 +403,8 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
             const struct IAPExtendedGetIndexedPlayingTrackInfoPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
             print("get indexed playing track info type=0x%02X track=%d chapter=%d", request_payload->type, swap_32(request_payload->track_index), swap_16(request_payload->chapter_index));
-#define ret_track_info                     \
-    payload->type = request_payload->type; \
-    return IAPExtendedInterfaceCommandID_ReturnIndexedPlayingTrackInfo;
+            check_ret(response->size > sizeof(struct IAPExtendedRetIndexedPlayingTrackInfoPayload), -IAPAckStatus_EOutOfResource);
+            ((struct IAPExtendedRetIndexedPlayingTrackInfoPayload*)response->ptr)->type = request_payload->type;
             switch(request_payload->type) {
             case IAPExtendedIndexedPlayingTrackInfoType_TrackCapsInfo: {
                 uint32_t                    length;
@@ -416,12 +414,12 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
                 payload->track_caps      = 0;
                 payload->track_length_ms = swap_32(length);
                 payload->chapter_count   = 0;
-                ret_track_info;
+                return IAPExtendedInterfaceCommandID_ReturnIndexedPlayingTrackInfo;
             } break;
             case IAPExtendedIndexedPlayingTrackInfoType_PodcastName: {
                 alloc_response_extra(IAPExtendedRetIndexedPlayingTrackInfoPodcastNamePayload, payload, 1);
                 payload->name[0] = '\0';
-                ret_track_info;
+                return IAPExtendedInterfaceCommandID_ReturnIndexedPlayingTrackInfo;
             } break;
             case IAPExtendedIndexedPlayingTrackInfoType_TrackReleaseDate: {
                 struct IAPPlatformTime      time;
@@ -435,32 +433,32 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
                 payload->month   = time.month;
                 payload->year    = swap_16(time.year);
                 payload->weekday = 0; /* TODO: set weekday? */
-                ret_track_info;
+                return IAPExtendedInterfaceCommandID_ReturnIndexedPlayingTrackInfo;
             } break;
             case IAPExtendedIndexedPlayingTrackInfoType_TrackDescription: {
                 alloc_response_extra(IAPExtendedRetIndexedPlayingTrackInfoTrackDescriptionPayload, payload, 1);
                 payload->info_bits      = 0;
                 payload->index          = 0;
                 payload->description[0] = '\0';
-                ret_track_info;
+                return IAPExtendedInterfaceCommandID_ReturnIndexedPlayingTrackInfo;
             } break;
             case IAPExtendedIndexedPlayingTrackInfoType_TrackSongLyrics: {
                 alloc_response_extra(IAPExtendedRetIndexedPlayingTrackInfoTrackSongLyricsPayload, payload, 1);
                 payload->info_bits = 0;
                 payload->index     = 0;
                 payload->lyrics[0] = '\0';
-                ret_track_info;
+                return IAPExtendedInterfaceCommandID_ReturnIndexedPlayingTrackInfo;
             } break;
             case IAPExtendedIndexedPlayingTrackInfoType_TrackGenre: {
                 alloc_response_extra(IAPExtendedRetIndexedPlayingTrackInfoTrackGenrePayload, payload, 1);
                 payload->genre[0] = '\0';
-                ret_track_info;
+                return IAPExtendedInterfaceCommandID_ReturnIndexedPlayingTrackInfo;
             } break;
             case IAPExtendedIndexedPlayingTrackInfoType_TrackComposer: {
                 alloc_response(IAPExtendedRetIndexedPlayingTrackInfoTrackComposerPayload, payload);
                 struct IAPPlatformTrackInfo info = {.composer = response};
                 check_ret(iap_platform_get_indexed_track_info(ctx->platform, swap_32(request_payload->track_index), &info), -IAPAckStatus_ECommandFailed);
-                ret_track_info;
+                return IAPExtendedInterfaceCommandID_ReturnIndexedPlayingTrackInfo;
             } break;
             case IAPExtendedIndexedPlayingTrackInfoType_TrackArtworkCount: {
                 // IAPArtworkPixelFormats_RGB565LE;
@@ -473,7 +471,6 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
                 warn("invalid request type 0x%02X", request_payload->type);
                 return -IAPAckStatus_EBadParameter;
             }
-#undef ret_track_info
         } break;
         case IAPExtendedInterfaceCommandID_ResetDBSelection: {
             print("reset db selection");
