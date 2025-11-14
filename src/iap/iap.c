@@ -251,7 +251,7 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
             payload->status = IAPAckStatus_Success;
             payload->id     = command;
             return IAPDisplayRemoteCommandID_IPodAck;
-        };
+        } break;
         case IAPDisplayRemoteCommandID_GetIPodStateInfo: {
             const struct IAPGetIPodStateInfoPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
@@ -389,11 +389,18 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
                 warn("invalid request type 0x%02X", request_payload->type);
                 return -IAPAckStatus_EBadParameter;
             }
-        };
+        } break;
         }
         break;
     case IAPLingoID_ExtendedInterface:
         switch(command) {
+        case IAPExtendedInterfaceCommandID_GetCurrentPlayingTrackChapterInfo: {
+            alloc_response(IAPReturnCurrentPlayingTrackChapterInfoPayload, payload);
+            /* no chapters */
+            payload->count = 0;
+            payload->index = -1;
+            return IAPExtendedInterfaceCommandID_ReturnCurrentPlayingTrackChapterInfo;
+        } break;
         case IAPExtendedInterfaceCommandID_GetAudiobookSpeed: {
             alloc_response(IAPRetAudiobookSpeedPayload, payload);
             payload->speed = IAPIPodStateAudiobookSpeeed_Normal;
