@@ -52,9 +52,12 @@ struct IAPPlatformTime {
 
 /* iap_platform_get_indexed_track_info */
 struct IAPPlatformTrackInfo {
-    uint32_t*               track_total_ms;
+    uint32_t*               total_ms;
     struct IAPPlatformTime* release_date;
+    struct IAPSpan*         artist;
     struct IAPSpan*         composer;
+    struct IAPSpan*         album;
+    struct IAPSpan*         title;
 };
 
 void*   iap_platform_malloc(void* platform, size_t size);

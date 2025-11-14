@@ -25,8 +25,8 @@ struct IAPRetIndexedPlayingTrackInfoPayload {
 } __attribute__((packed));
 
 struct IAPRetIndexedPlayingTrackInfoTrackCapsInfoPayload {
-    uint8_t  type; /* = IAPIndexedPlayingTrackInfoType_TrackCapsInfo */
-    uint32_t caps; /* IAPIPodStateTrackCapBits */
+    uint8_t  type;       /* = IAPIndexedPlayingTrackInfoType_TrackCapsInfo */
+    uint32_t track_caps; /* IAPIPodStateTrackCapBits */
     uint32_t track_total_ms;
     uint16_t chapter_count;
 } __attribute__((packed));

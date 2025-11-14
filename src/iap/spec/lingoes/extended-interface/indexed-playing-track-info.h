@@ -28,7 +28,7 @@ struct IAPExtendedRetIndexedPlayingTrackInfoPayload {
 struct IAPExtendedRetIndexedPlayingTrackInfoTrackCapsInfoPayload {
     uint8_t  type;       /* = IAPExtendedRetIndexedPlayingTrackInfo_TrackCapsInfo */
     uint32_t track_caps; /* IAPIPodStateTrackCapBits */
-    uint32_t track_length_ms;
+    uint32_t track_total_ms;
     uint16_t chapter_count;
 } __attribute__((packed));
 

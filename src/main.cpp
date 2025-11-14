@@ -115,9 +115,11 @@ IAPBool iap_platform_get_hold_switch_state(void* platform, IAPBool* state) {
 }
 
 IAPBool iap_platform_get_indexed_track_info(void* platform, uint32_t index, struct IAPPlatformTrackInfo* info) {
+    constexpr auto error_value = iap_false;
+
     (void)index;
-    if(info->track_total_ms != NULL) {
-        *info->track_total_ms = 10 * 1000;
+    if(info->total_ms != NULL) {
+        *info->total_ms = 10 * 1000;
     }
     if(info->release_date != NULL) {
         info->release_date->year    = 2000;
@@ -127,10 +129,21 @@ IAPBool iap_platform_get_indexed_track_info(void* platform, uint32_t index, stru
         info->release_date->minute  = 0;
         info->release_date->seconds = 0;
     }
+    if(info->artist != NULL) {
+        static const char* str = "(artist)";
+        ensure_v(iap_span_append(info->artist, str, sizeof(str)));
+    }
     if(info->composer != NULL) {
-        constexpr auto     error_value = iap_false;
-        static const char* composer    = "DUMMY";
-        ensure_v(iap_span_append(info->composer, composer, sizeof(composer)));
+        static const char* str = "(composer)";
+        ensure_v(iap_span_append(info->composer, str, sizeof(str)));
+    }
+    if(info->album != NULL) {
+        static const char* str = "(album)";
+        ensure_v(iap_span_append(info->album, str, sizeof(str)));
+    }
+    if(info->title != NULL) {
+        static const char* str = "(title)";
+        ensure_v(iap_span_append(info->title, str, sizeof(str)));
     }
     return iap_true;
 }
