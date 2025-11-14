@@ -21,6 +21,7 @@ IAPBool iap_init_ctx(struct IAPContext* ctx) {
     ctx->send_buf_sending_range_begin = 0;
     ctx->send_buf_sending_range_end   = 0;
     ctx->on_send_complete             = NULL;
+    ctx->handler_override             = NULL;
     ctx->trans_id                     = 0;
     ctx->send_busy                    = iap_false;
     ctx->phase                        = IAPPhase_Connected;
@@ -146,13 +147,19 @@ static int32_t handle_in_idps(struct IAPContext* ctx, uint8_t lingo, uint16_t co
     return iap_false;
 }
 
-static IAPBool send_auth_challenge_sig(struct IAPContext* ctx) {
+static IAPBool send_auth_challenge_sig_cb(struct IAPContext* ctx) {
     check_ret(ctx->phase == IAPPhase_Auth, iap_false);
     struct IAPSpan                     request = _iap_get_buffer_for_send_payload(ctx);
     struct IAPGetAccAuthSigPayload2p0* payload = iap_span_alloc(&request, sizeof(*payload));
     check_ret(payload != NULL, iap_false);
     payload->retry = 1;
     check_ret(_iap_send_packet(ctx, IAPLingoID_General, IAPGeneralCommandID_GetAccessoryAuthenticationSignature, (ctx->trans_id += 1), request.ptr), iap_false);
+    return iap_true;
+}
+
+static IAPBool send_sample_rate_caps_cb(struct IAPContext* ctx) {
+    struct IAPSpan request = _iap_get_buffer_for_send_payload(ctx);
+    check_ret(_iap_send_packet(ctx, IAPLingoID_DigitalAudio, IAPDigitalAudioCommandID_GetAccessorySampleRateCaps, (ctx->trans_id += 1), request.ptr), iap_false);
     return iap_true;
 }
 
@@ -171,7 +178,7 @@ static int32_t handle_in_auth(struct IAPContext* ctx, uint8_t lingo, uint16_t co
                 payload->id     = command;
                 return IAPGeneralCommandID_IPodAck;
             } else {
-                ctx->on_send_complete = send_auth_challenge_sig;
+                ctx->on_send_complete = send_auth_challenge_sig_cb;
 
                 alloc_response(IAPAckAccAuthInfoPayload, payload);
                 payload->status = IAPAckAccAuthInfoStatus_Supported;
@@ -185,7 +192,8 @@ static int32_t handle_in_auth(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             alloc_response(IAPAckAccAuthSigPayload, payload);
             payload->status = IAPAckStatus_Success;
 
-            ctx->phase = IAPPhase_Authed;
+            ctx->phase            = IAPPhase_Authed;
+            ctx->on_send_complete = send_sample_rate_caps_cb;
 
             return IAPGeneralCommandID_AckAccessoryAuthenticationStatus;
         } break;
@@ -678,6 +686,20 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
         } break;
         }
         break;
+    case IAPLingoID_DigitalAudio:
+        switch(command) {
+        case IAPDigitalAudioCommandID_RetAccessorySampleRateCaps: {
+            const struct IAPRetAccessorySampleRateCapsPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
+            print("accessory supported sample rates:");
+            while(request->size > 0) {
+                uint32_t sample_rate;
+                check_ret(iap_span_read_32(request, &sample_rate), -IAPAckStatus_EBadParameter);
+                IAP_LOGF("  %d", sample_rate);
+            }
+            response->ptr = NULL; /* disable response */
+        } break;
+        }
+        break;
     }
     return -IAPAckStatus_EUnknownID;
 }
@@ -781,21 +803,26 @@ IAPBool _iap_feed_packet(struct IAPContext* ctx, const uint8_t* const data, cons
     /* assume trans id is enabled */
     check_ret(iap_span_read_16(&request, &trans_id), iap_false);
 
+    /* pick handler function */
+    IAPHandler handler;
+    if(ctx->handler_override != NULL) {
+        handler = ctx->handler_override;
+    } else {
+        static const IAPHandler handlers[] = {
+            handle_in_connected,
+            handle_in_idps,
+            handle_in_auth,
+            handle_in_authed,
+        };
+        handler = handlers[ctx->phase];
+    }
+
+    /* invoke handler */
     struct IAPSpan response = _iap_get_buffer_for_send_payload(ctx);
-    int32_t        ret;
-    switch(ctx->phase) {
-    case IAPPhase_Connected:
-        ret = handle_in_connected(ctx, lingo, command, &request, &response);
-        break;
-    case IAPPhase_IDPS:
-        ret = handle_in_idps(ctx, lingo, command, &request, &response);
-        break;
-    case IAPPhase_Auth:
-        ret = handle_in_auth(ctx, lingo, command, &request, &response);
-        break;
-    case IAPPhase_Authed:
-        ret = handle_in_authed(ctx, lingo, command, &request, &response);
-        break;
+    int32_t        ret      = handler(ctx, lingo, command, &request, &response);
+    if(response.ptr == NULL) {
+        /* handler disabled response */
+        return iap_true;
     }
     if(ret < 0) {
         /* handling failed, replace response with ipod ack */

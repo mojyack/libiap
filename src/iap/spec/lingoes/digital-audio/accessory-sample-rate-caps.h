@@ -1,6 +1,6 @@
 #pragma once
 #include <stdint.h>
 
-struct IAPRetRetAccessorySampleRateCapsPayload {
+struct IAPRetAccessorySampleRateCapsPayload {
     uint32_t sample_rates[];
 } __attribute__((packed));

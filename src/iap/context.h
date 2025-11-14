@@ -5,8 +5,10 @@
 #include "bool.h"
 
 struct IAPContext;
+struct IAPSpan;
 
-typedef IAPBool (*IAPOnSendComplete)(struct IAPContext*);
+typedef IAPBool (*IAPOnSendComplete)(struct IAPContext* ctx);
+typedef int32_t (*IAPHandler)(struct IAPContext* ctx, uint8_t lingo, uint16_t command, struct IAPSpan* request, struct IAPSpan* response);
 
 struct IAPContext {
     void* platform; /* opaque to platform functions */
@@ -21,6 +23,8 @@ struct IAPContext {
     size_t   send_buf_sending_range_end;
     /* _iap_send_next_report */
     IAPOnSendComplete on_send_complete;
+    /* _iap_feed_packet */
+    IAPHandler handler_override;
     /* iap.c */
     uint16_t trans_id;
     /* _iap_send_hid_reports */
