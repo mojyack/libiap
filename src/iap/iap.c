@@ -564,6 +564,30 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
             payload->index = swap_32(status.track_index);
             return IAPExtendedInterfaceCommandID_ReturnCurrentPlayingTrackIndex;
         } break;
+        case IAPExtendedInterfaceCommandID_GetIndexedPlayingTrackTitle: {
+            const struct IAPGetIndexedPlayingTrackStringPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
+            check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
+            alloc_response(IAPReturnIndexedPlayingTrackStringPayload, payload);
+            struct IAPPlatformTrackInfo info = {.title = response};
+            check_ret(iap_platform_get_indexed_track_info(ctx->platform, swap_32(request_payload->index), &info), -IAPAckStatus_ECommandFailed);
+            return IAPExtendedInterfaceCommandID_ReturnIndexedPlayingTrackTitle;
+        } break;
+        case IAPExtendedInterfaceCommandID_GetIndexedPlayingTrackArtistName: {
+            const struct IAPGetIndexedPlayingTrackStringPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
+            check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
+            alloc_response(IAPReturnIndexedPlayingTrackStringPayload, payload);
+            struct IAPPlatformTrackInfo info = {.artist = response};
+            check_ret(iap_platform_get_indexed_track_info(ctx->platform, swap_32(request_payload->index), &info), -IAPAckStatus_ECommandFailed);
+            return IAPExtendedInterfaceCommandID_ReturnIndexedPlayingTrackArtistName;
+        } break;
+        case IAPExtendedInterfaceCommandID_GetIndexedPlayingTrackAlbumName: {
+            const struct IAPGetIndexedPlayingTrackStringPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
+            check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
+            alloc_response(IAPReturnIndexedPlayingTrackStringPayload, payload);
+            struct IAPPlatformTrackInfo info = {.album = response};
+            check_ret(iap_platform_get_indexed_track_info(ctx->platform, swap_32(request_payload->index), &info), -IAPAckStatus_ECommandFailed);
+            return IAPExtendedInterfaceCommandID_ReturnIndexedPlayingTrackAlbumName;
+        } break;
         case IAPExtendedInterfaceCommandID_SetPlayStatusChangeNotification: {
             if(request->size == sizeof(struct IAPSetPlayStatusChangeNotification1BytePayload)) {
                 const struct IAPSetPlayStatusChangeNotification1BytePayload* request_payload = iap_span_read(request, sizeof(*request_payload));
