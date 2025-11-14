@@ -163,6 +163,16 @@ static IAPBool send_sample_rate_caps_cb(struct IAPContext* ctx) {
     return iap_true;
 }
 
+static IAPBool send_track_new_audio_attrs_cb(struct IAPContext* ctx) {
+    struct IAPSpan                            request = _iap_get_buffer_for_send_payload(ctx);
+    struct IAPTrackNewAudioAttributesPayload* payload = iap_span_alloc(&request, sizeof(*payload));
+    payload->sample_rate                              = swap_32(44100);
+    payload->sound_check                              = 0;
+    payload->volume_adjustment                        = 0;
+    check_ret(_iap_send_packet(ctx, IAPLingoID_DigitalAudio, IAPDigitalAudioCommandID_TrackNewAudioAttributes, (ctx->trans_id += 1), request.ptr), iap_false);
+    return iap_true;
+}
+
 static int32_t handle_in_auth(struct IAPContext* ctx, uint8_t lingo, uint16_t command, struct IAPSpan* request, struct IAPSpan* response) {
     switch(lingo) {
     case IAPLingoID_General:
@@ -688,15 +698,30 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
         break;
     case IAPLingoID_DigitalAudio:
         switch(command) {
+        case IAPDigitalAudioCommandID_AccessoryAck: {
+            const struct IAPAccAckPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
+            check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
+
+            response->ptr = NULL;
+            check_ret(request_payload->status == IAPAckStatus_Success, 0);
+            return 0;
+        } break;
         case IAPDigitalAudioCommandID_RetAccessorySampleRateCaps: {
             const struct IAPRetAccessorySampleRateCapsPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
+            check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
             print("accessory supported sample rates:");
             while(request->size > 0) {
                 uint32_t sample_rate;
                 check_ret(iap_span_read_32(request, &sample_rate), -IAPAckStatus_EBadParameter);
                 IAP_LOGF("  %d", sample_rate);
             }
-            response->ptr = NULL; /* disable response */
+            response->ptr = NULL; /* no response */
+            if(ctx->send_busy) {
+                ctx->on_send_complete = send_track_new_audio_attrs_cb;
+            } else {
+                check_ret(send_track_new_audio_attrs_cb(ctx), 0);
+            }
+            return 0;
         } break;
         }
         break;
