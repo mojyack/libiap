@@ -508,6 +508,42 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
             payload->id     = swap_16(command);
             return IAPExtendedInterfaceCommandID_IPodAck;
         } break;
+        case IAPExtendedInterfaceCommandID_PlayControl: {
+            const struct IAPPlayControlPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
+            check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
+            print("play control 0x%02X", request_payload->code);
+            static const int enum_table[][2] = {
+                {IAPPlayControlCode_TogglePlayPause, IAPPlatformControl_TogglePlayPause},
+                {IAPPlayControlCode_Stop, IAPPlatformControl_Stop},
+                {IAPPlayControlCode_NextTrack, IAPPlatformControl_Next},
+                {IAPPlayControlCode_PrevTrack, IAPPlatformControl_Prev},
+                {IAPPlayControlCode_StartFF, -1},
+                {IAPPlayControlCode_StartRew, -1},
+                {IAPPlayControlCode_EndFFRew, -1},
+                {IAPPlayControlCode_Next, IAPPlatformControl_Next},
+                {IAPPlayControlCode_Prev, IAPPlatformControl_Prev},
+                {IAPPlayControlCode_Play, IAPPlatformControl_Play},
+                {IAPPlayControlCode_Pause, IAPPlatformControl_Pause},
+                {IAPPlayControlCode_NextChapter, IAPPlatformControl_Next},
+                {IAPPlayControlCode_PrevChapter, IAPPlatformControl_Prev},
+                {IAPPlayControlCode_ResumeIPod, -1},
+            };
+            int control = -1;
+            for(size_t i = 0; i < array_size(enum_table); i += 1) {
+                if(enum_table[i][0] == request_payload->code) {
+                    control = enum_table[i][1];
+                    break;
+                }
+            }
+            if(control >= 0) {
+                check_ret(iap_platform_control(ctx->platform, control), -IAPAckStatus_ECommandFailed);
+            }
+
+            alloc_response(IAPExtendedIPodAckPayload, payload);
+            payload->status = IAPAckStatus_Success;
+            payload->id     = swap_16(command);
+            return IAPExtendedInterfaceCommandID_IPodAck;
+        } break;
         case IAPExtendedInterfaceCommandID_GetShuffle: {
             alloc_response(IAPReturnShufflePayload, payload);
             check_ret(iap_platform_get_shuffle_setting(ctx->platform, &payload->mode), -IAPAckStatus_ECommandFailed);

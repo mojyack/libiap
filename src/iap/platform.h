@@ -17,6 +17,16 @@ struct IAPPlatformPlayStatus {
     uint8_t  state; /* IAPIPodStatePlayStatus */
 };
 
+/* iap_platform_control */
+enum IAPPlatformControl {
+    IAPPlatformControl_TogglePlayPause,
+    IAPPlatformControl_Play,
+    IAPPlatformControl_Pause,
+    IAPPlatformControl_Stop,
+    IAPPlatformControl_Next,
+    IAPPlatformControl_Prev,
+};
+
 /* iap_platform_get_volume */
 struct IAPPlatformVolumeStatus {
     uint8_t volume;
@@ -51,6 +61,7 @@ void    iap_platform_free(void* platform, void* ptr);
 int     iap_platform_send_hid_report(void* platform, const void* ptr, size_t size);
 IAPBool iap_platform_get_ipod_serial_num(void* platform, struct IAPSpan* serial);
 IAPBool iap_platform_get_play_status(void* platform, struct IAPPlatformPlayStatus* status);
+IAPBool iap_platform_control(void* platform, enum IAPPlatformControl control);
 IAPBool iap_platform_get_volume(void* platform, struct IAPPlatformVolumeStatus* status);
 IAPBool iap_platform_get_power_status(void* platform, struct IAPPlatformPowerStatus* status);
 IAPBool iap_platform_get_shuffle_setting(void* platform, uint8_t* status /* IAPIPodStateShuffleSettingState */);

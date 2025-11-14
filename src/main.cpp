@@ -46,6 +46,12 @@ IAPBool iap_platform_get_play_status(void* platform, struct IAPPlatformPlayStatu
     return iap_true;
 }
 
+IAPBool iap_platform_control(void* platform, enum IAPPlatformControl control) {
+    (void)platform;
+    std::println("control {}", int(control));
+    return iap_true;
+}
+
 IAPBool iap_platform_get_volume(void* platform, struct IAPPlatformVolumeStatus* status) {
     (void)platform;
     status->volume = 128;
