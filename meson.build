@@ -15,11 +15,12 @@ add_project_arguments('-Wno-variadic-macro-arguments-omitted', language: 'c')
 add_project_arguments('-Wno-c99-extensions', language: 'c')
 
 
-deps = []
+deps = [dependency('flac++')]
 
 executable(
     'app',
     files(
+        'src/flac.cpp',
         'src/iap/debug.c',
         'src/iap/fid-token-values.c',
         'src/iap/hid.c',

@@ -5,8 +5,9 @@
 
 #include "iap/iap.h"
 #include "iap/platform.h"
-#include "macros/assert.hpp"
+#include "macros/unwrap.hpp"
 #include "util/hexdump.hpp"
+#include "flac.hpp"
 
 // platform implementation
 extern "C" {
@@ -153,7 +154,12 @@ void iap_platform_dump_hex(const void* ptr, size_t size) {
 }
 }
 
-auto main() -> int {
+auto main(const int argc, const char* const* argv) -> int {
+    ensure(argc > 1);
+    unwrap(audio, decode_flac(argv[1]));
+    PRINT("samples={}", audio.total_samples);
+    PRINT("commnets={}", audio.comments);
+    return 0;
     auto platform = LinuxPlatformData{
         .fd = open("/dev/iap0", O_RDWR | O_NONBLOCK),
     };
