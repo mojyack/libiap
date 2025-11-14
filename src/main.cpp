@@ -42,6 +42,7 @@ IAPBool iap_platform_get_play_status(void* platform, struct IAPPlatformPlayStatu
     status->track_total_ms = 10 * 1000;
     status->track_pos_ms   = 5 * 1000;
     status->track_index    = 0;
+    status->track_count    = 8;
     status->state          = IAPIPodStatePlayStatus_PlaybackPaused;
     return iap_true;
 }

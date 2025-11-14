@@ -576,6 +576,13 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
             payload->id     = swap_16(command);
             return IAPExtendedInterfaceCommandID_IPodAck;
         } break;
+        case IAPExtendedInterfaceCommandID_GetNumPlayingTracks: {
+            struct IAPPlatformPlayStatus status;
+            check_ret(iap_platform_get_play_status(ctx->platform, &status), -IAPAckStatus_ECommandFailed);
+            alloc_response(IAPRetNumPlayingTracksPayload, payload);
+            payload->num_playing_tracks = swap_32(status.track_count);
+            return IAPExtendedInterfaceCommandID_ReturnNumPlayingTracks;
+        } break;
         }
         break;
     }

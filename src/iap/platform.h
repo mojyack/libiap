@@ -14,6 +14,7 @@ struct IAPPlatformPlayStatus {
     uint32_t track_total_ms;
     uint32_t track_pos_ms;
     uint32_t track_index;
+    uint32_t track_count;
     uint8_t  state; /* IAPIPodStatePlayStatus */
 };
 
