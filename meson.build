@@ -28,6 +28,7 @@ executable(
         'src/iap/span.c',
         'src/iap/vector.c',
         'src/main.cpp',
+        'src/platform.cpp',
     ),
     dependencies: deps,
     install: true,
