@@ -7,13 +7,70 @@
 #include "iap/iap.h"
 #include "macros/unwrap.hpp"
 #include "platform.hpp"
+#include "util/charconv.hpp"
 #include "util/hexdump.hpp"
+#include "util/split.hpp"
+
+struct Track {
+    size_t                 total_samples;
+    uint32_t               sample_rate;
+    uint8_t                channels;
+    std::vector<int16_t>   data;
+    std::vector<std::byte> cover;
+    std::string            album;
+    std::string            artist;
+    std::string            title;
+    uint16_t               year  = 0;
+    uint8_t                month = 0;
+    uint8_t                day   = 0;
+};
+
+namespace {
+auto set_comment_value(std::string& dest, std::string_view comment, std::string_view key) -> void {
+    if(comment.starts_with(key)) {
+        dest = std::string(comment.substr(key.size()));
+    }
+}
+
+auto build_track(AudioFile audio) -> std::optional<Track> {
+    auto ret = Track{
+        .total_samples = audio.total_samples,
+        .sample_rate   = audio.sample_rate,
+        .channels      = audio.channels,
+        .data          = std::move(audio.data),
+        .cover         = std::move(audio.cover),
+    };
+    // parse comments
+    auto release = std::string();
+    for(const auto& comment : audio.comments) {
+        set_comment_value(ret.album, comment, "ALBUM=");
+        set_comment_value(ret.artist, comment, "ARTIST=");
+        set_comment_value(ret.title, comment, "TITLE=");
+        set_comment_value(release, comment, "DATE=");
+    }
+    if(!release.empty()) {
+        const auto elms = split(release, "-");
+        ensure(elms.size() == 3);
+        unwrap(year, from_chars<uint16_t>(elms[0]));
+        unwrap(month, from_chars<uint8_t>(elms[1]));
+        unwrap(day, from_chars<uint8_t>(elms[2]));
+        ret.year  = year;
+        ret.month = month;
+        ret.day   = day;
+    }
+    return ret;
+}
+} // namespace
 
 auto main(const int argc, const char* const* argv) -> int {
     ensure(argc > 1);
-    unwrap(audio, decode_flac(argv[1]));
-    PRINT("samples={}", audio.total_samples);
-    PRINT("commnets={}", audio.comments);
+    unwrap_mut(audio, decode_flac(argv[1]));
+    unwrap(track, build_track(std::move(audio)));
+    PRINT("title={}", track.title);
+    PRINT("album={}", track.album);
+    PRINT("artist={}", track.artist);
+    PRINT("date={}-{}-{}", track.year, track.month, track.day);
+    PRINT("samples={}", track.total_samples);
     return 0;
     auto platform = LinuxPlatformData{
         .fd = open("/dev/iap0", O_RDWR | O_NONBLOCK),
