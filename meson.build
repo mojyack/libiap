@@ -15,7 +15,8 @@ add_project_arguments('-Wno-variadic-macro-arguments-omitted', language: 'c')
 add_project_arguments('-Wno-c99-extensions', language: 'c')
 
 
-deps = [dependency('flac++')]
+cpp = meson.get_compiler('cpp')
+deps = [dependency('flac++'), cpp.find_library('asound')]
 
 executable(
     'app',
