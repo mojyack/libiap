@@ -101,6 +101,8 @@ IAPBool _iap_send_next_report(struct IAPContext* ctx) {
             IAPOnSendComplete cb  = ctx->on_send_complete;
             ctx->on_send_complete = NULL;
             check_ret(cb(ctx), iap_false);
+        } else if(ctx->flushing_notifications) {
+            check_ret(_iap_flush_notification(ctx), iap_false);
         }
         return iap_true;
     }

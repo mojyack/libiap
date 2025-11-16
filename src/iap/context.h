@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 #include "bool.h"
+#include "notification.h"
 
 struct IAPContext;
 struct IAPSpan;
@@ -27,10 +28,14 @@ struct IAPContext {
     IAPHandler handler_override;
     /* iap.c */
     uint16_t trans_id;
+    /* notifications */
+    uint32_t               enabled_notifications;
+    uint32_t               notifications;
+    struct _IAPNotifyState notification_data;
     /* _iap_send_hid_reports */
     uint8_t hid_send_staging_buf[0x3F /* max hid report size */ + 1 /* report id */] __attribute__((aligned(32)));
     IAPBool send_busy;
+    IAPBool flushing_notifications;
 
     uint8_t phase; /* IAPPhase */
 };
-

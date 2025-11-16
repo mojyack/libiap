@@ -23,8 +23,10 @@ IAPBool iap_init_ctx(struct IAPContext* ctx) {
     ctx->on_send_complete             = NULL;
     ctx->handler_override             = NULL;
     ctx->trans_id                     = 0;
+    ctx->enabled_notifications        = 0;
     ctx->notifications                = 0;
     ctx->send_busy                    = iap_false;
+    ctx->flushing_notifications       = iap_false;
     ctx->phase                        = IAPPhase_Connected;
     return iap_true;
 }
@@ -264,7 +266,8 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
         case IAPDisplayRemoteCommandID_SetRemoteEventNotification: {
             const struct IAPSetRemoteEventNotificationPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
-            print("set remote event notification 0x%04X", swap_32(request_payload->mask));
+            ctx->enabled_notifications = swap_32(request_payload->mask);
+            print("set remote event notification 0x%04X", ctx->enabled_notifications);
 
             alloc_response(IAPIPodAckPayload, payload);
             payload->status = IAPAckStatus_Success;
