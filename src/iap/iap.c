@@ -619,6 +619,15 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
             payload->id     = swap_16(command);
             return IAPExtendedInterfaceCommandID_IPodAck;
         } break;
+        case IAPExtendedInterfaceCommandID_PlayCurrentSelection: {
+            const struct IAPPlayCurrentSelectionPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
+            check_ret(iap_platform_control(ctx->platform, IAPPlatformControl_Play), -IAPAckStatus_ECommandFailed);
+            alloc_response(IAPExtendedIPodAckPayload, payload);
+
+            payload->status = IAPAckStatus_Success;
+            payload->id     = swap_16(command);
+            return IAPExtendedInterfaceCommandID_IPodAck;
+        } break;
         case IAPExtendedInterfaceCommandID_PlayControl: {
             const struct IAPPlayControlPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
