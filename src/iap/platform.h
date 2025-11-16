@@ -2,6 +2,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "datetime.h"
 #include "span.h"
 #include "spec/iap.h"
 
@@ -15,7 +16,8 @@ struct IAPPlatformPlayStatus {
     uint32_t track_pos_ms;
     uint32_t track_index;
     uint32_t track_count;
-    uint8_t  state; /* IAPIPodStatePlayStatus */
+    uint8_t  track_caps; /* IAPIPodStateTrackCapBits */
+    uint8_t  state;      /* IAPIPodStatePlayStatus */
 };
 
 /* iap_platform_control */
@@ -40,24 +42,15 @@ struct IAPPlatformPowerStatus {
     uint8_t battery_level;
 };
 
-/* iap_platform_get_date_time */
-struct IAPPlatformTime {
-    uint16_t year;
-    uint8_t  month;
-    uint8_t  day;
-    uint8_t  hour;
-    uint8_t  minute;
-    uint8_t  seconds;
-};
-
 /* iap_platform_get_indexed_track_info */
 struct IAPPlatformTrackInfo {
-    uint32_t*               total_ms;
-    struct IAPPlatformTime* release_date;
-    struct IAPSpan*         artist;
-    struct IAPSpan*         composer;
-    struct IAPSpan*         album;
-    struct IAPSpan*         title;
+    uint32_t*           total_ms;
+    uint8_t*            caps; /* IAPIPodStateTrackCapBits */
+    struct IAPDateTime* release_date;
+    struct IAPSpan*     artist;
+    struct IAPSpan*     composer;
+    struct IAPSpan*     album;
+    struct IAPSpan*     title;
 };
 
 void*   iap_platform_malloc(void* platform, size_t size);
@@ -72,7 +65,7 @@ IAPBool iap_platform_get_shuffle_setting(void* platform, uint8_t* status /* IAPI
 IAPBool iap_platform_set_shuffle_setting(void* platform, uint8_t status /* IAPIPodStateShuffleSettingState */);
 IAPBool iap_platform_get_repeat_setting(void* platform, uint8_t* status /* IAPIPodStateRepeatSettingState */);
 IAPBool iap_platform_set_repeat_setting(void* platform, uint8_t status /* IAPIPodStateRepeatSettingState */);
-IAPBool iap_platform_get_date_time(void* platform, struct IAPPlatformTime* time);
+IAPBool iap_platform_get_date_time(void* platform, struct IAPDateTime* time);
 IAPBool iap_platform_get_backlight_level(void* platform, uint8_t* level);
 IAPBool iap_platform_get_hold_switch_state(void* platform, IAPBool* state);
 IAPBool iap_platform_get_indexed_track_info(void* platform, uint32_t index, struct IAPPlatformTrackInfo* info);

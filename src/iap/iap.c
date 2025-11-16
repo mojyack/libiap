@@ -332,17 +332,17 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
             } break;
             case IAPIPodStateType_ShuffleSetting: {
                 alloc_response(IAPIPodStateShuffleSettingPayload, payload);
-                check_ret(iap_platform_get_shuffle_setting(ctx->platform, &payload->shuffle_state), iap_false);
+                check_ret(iap_platform_get_shuffle_setting(ctx->platform, &payload->shuffle_state), -IAPAckStatus_ECommandFailed);
                 return IAPDisplayRemoteCommandID_RetIPodStateInfo;
             } break;
             case IAPIPodStateType_RepeatSetting: {
                 alloc_response(IAPIPodStateRepeatSettingPayload, payload);
-                check_ret(iap_platform_get_repeat_setting(ctx->platform, &payload->repeat_state), iap_false);
+                check_ret(iap_platform_get_repeat_setting(ctx->platform, &payload->repeat_state), -IAPAckStatus_ECommandFailed);
                 return IAPDisplayRemoteCommandID_RetIPodStateInfo;
             } break;
             case IAPIPodStateType_DateTimeSetting: {
-                struct IAPPlatformTime time;
-                check_ret(iap_platform_get_date_time(ctx->platform, &time), iap_false);
+                struct IAPDateTime time;
+                check_ret(iap_platform_get_date_time(ctx->platform, &time), -IAPAckStatus_ECommandFailed);
                 alloc_response(IAPIPodStateDateTimeSettingPayload, payload);
                 payload->year   = swap_16(time.year);
                 payload->month  = time.month;
@@ -357,12 +357,12 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
             } break;
             case IAPIPodStateType_BacklightLevel: {
                 alloc_response(IAPIPodStateBacklightLevelPayload, payload);
-                check_ret(iap_platform_get_backlight_level(ctx->platform, &payload->level), iap_false);
+                check_ret(iap_platform_get_backlight_level(ctx->platform, &payload->level), -IAPAckStatus_ECommandFailed);
                 return IAPDisplayRemoteCommandID_RetIPodStateInfo;
             } break;
             case IAPIPodStateType_HoldSwitchState: {
                 IAPBool state;
-                check_ret(iap_platform_get_hold_switch_state(ctx->platform, &state), iap_false);
+                check_ret(iap_platform_get_hold_switch_state(ctx->platform, &state), -IAPAckStatus_ECommandFailed);
                 alloc_response(IAPIPodStateHoldSwitchStatePayload, payload);
                 payload->state = state;
                 return IAPDisplayRemoteCommandID_RetIPodStateInfo;
@@ -379,14 +379,14 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
             } break;
             case IAPIPodStateType_TrackTimePositionSec: {
                 struct IAPPlatformPlayStatus status;
-                check_ret(iap_platform_get_play_status(ctx->platform, &status), iap_false);
+                check_ret(iap_platform_get_play_status(ctx->platform, &status), -IAPAckStatus_ECommandFailed);
                 alloc_response(IAPIPodStateTrackTimePositionSecPayload, payload);
                 payload->position_s = swap_32(status.track_pos_ms / 1000);
                 return IAPDisplayRemoteCommandID_RetIPodStateInfo;
             } break;
             case IAPIPodStateType_AbsoluteVolume: {
                 struct IAPPlatformVolumeStatus status;
-                check_ret(iap_platform_get_volume(ctx->platform, &status), iap_false);
+                check_ret(iap_platform_get_volume(ctx->platform, &status), -IAPAckStatus_ECommandFailed);
                 alloc_response(IAPIPodStateAbsoluteVolumePayload, payload);
                 payload->mute_state      = status.muted;
                 payload->ui_volume       = status.volume;
@@ -394,8 +394,10 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
                 return IAPDisplayRemoteCommandID_RetIPodStateInfo;
             } break;
             case IAPIPodStateType_TrackCaps: {
+                struct IAPPlatformPlayStatus status;
+                check_ret(iap_platform_get_play_status(ctx->platform, &status), -IAPAckStatus_ECommandFailed);
                 alloc_response(IAPIPodStateTrackCapsPayload, payload);
-                payload->caps = 0; /* no caps */
+                payload->caps = status.track_caps;
                 return IAPDisplayRemoteCommandID_RetIPodStateInfo;
             } break;
             case IAPIPodStateType_PlaybackEngineContents: {
@@ -417,10 +419,11 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
             switch(request_payload->type) {
             case IAPIndexedPlayingTrackInfoType_TrackCapsInfo: {
                 uint32_t                    length;
-                struct IAPPlatformTrackInfo info = {.total_ms = &length};
+                uint8_t                     caps;
+                struct IAPPlatformTrackInfo info = {.total_ms = &length, .caps = &caps};
                 check_ret(iap_platform_get_indexed_track_info(ctx->platform, swap_32(request_payload->track_index), &info), -IAPAckStatus_ECommandFailed);
                 alloc_response(IAPRetIndexedPlayingTrackInfoTrackCapsInfoPayload, payload);
-                payload->track_caps     = 0;
+                payload->track_caps     = caps;
                 payload->track_total_ms = swap_32(length);
                 payload->chapter_count  = 0;
                 return IAPDisplayRemoteCommandID_RetIndexedPlayingTrackInfo;
@@ -495,10 +498,11 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
             switch(request_payload->type) {
             case IAPExtendedIndexedPlayingTrackInfoType_TrackCapsInfo: {
                 uint32_t                    length;
-                struct IAPPlatformTrackInfo info = {.total_ms = &length};
+                uint8_t                     caps;
+                struct IAPPlatformTrackInfo info = {.total_ms = &length, .caps = &caps};
                 check_ret(iap_platform_get_indexed_track_info(ctx->platform, swap_32(request_payload->track_index), &info), -IAPAckStatus_ECommandFailed);
                 alloc_response(IAPExtendedRetIndexedPlayingTrackInfoTrackCapsInfoPayload, payload);
-                payload->track_caps     = 0;
+                payload->track_caps     = caps;
                 payload->track_total_ms = swap_32(length);
                 payload->chapter_count  = 0;
                 return IAPExtendedInterfaceCommandID_ReturnIndexedPlayingTrackInfo;
@@ -509,7 +513,7 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
                 return IAPExtendedInterfaceCommandID_ReturnIndexedPlayingTrackInfo;
             } break;
             case IAPExtendedIndexedPlayingTrackInfoType_TrackReleaseDate: {
-                struct IAPPlatformTime      time;
+                struct IAPDateTime          time;
                 struct IAPPlatformTrackInfo info = {.release_date = &time};
                 check_ret(iap_platform_get_indexed_track_info(ctx->platform, swap_32(request_payload->track_index), &info), -IAPAckStatus_ECommandFailed);
                 alloc_response(IAPExtendedRetIndexedPlayingTrackInfoTrackReleaseDatePayload, payload);

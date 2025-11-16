@@ -38,6 +38,7 @@ IAPBool iap_platform_get_play_status(void* platform, struct IAPPlatformPlayStatu
         status->track_pos_ms   = samples_to_ms(ctx.pcm_cursor);
         status->track_index    = ctx.current_track;
         status->track_count    = ctx.tracks.size();
+        status->track_caps     = IAPIPodStateTrackCapBits_HasAlbumArts | IAPIPodStateTrackCapBits_HasReleaseDate;
     }
     constexpr auto state_table = std::array{
         IAPIPodStatePlayStatus_PlaybackStopped,
@@ -127,7 +128,7 @@ IAPBool iap_platform_set_repeat_setting(void* platform, uint8_t status) {
     return iap_true;
 }
 
-IAPBool iap_platform_get_date_time(void* platform, struct IAPPlatformTime* time) {
+IAPBool iap_platform_get_date_time(void* platform, struct IAPDateTime* time) {
     (void)platform;
     time->year    = 2025;
     time->month   = 11;
@@ -159,6 +160,9 @@ IAPBool iap_platform_get_indexed_track_info(void* platform, uint32_t index, stru
     const auto& track = ctx.tracks[index];
     if(info->total_ms != NULL) {
         *info->total_ms = samples_to_ms(track.data.size());
+    }
+    if(info->caps != NULL) {
+        *info->caps = IAPIPodStateTrackCapBits_HasAlbumArts | IAPIPodStateTrackCapBits_HasReleaseDate;
     }
     if(info->release_date != NULL) {
         info->release_date->year    = track.year;
