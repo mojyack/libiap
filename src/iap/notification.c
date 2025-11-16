@@ -2,6 +2,7 @@
 #include "endian.h"
 #include "iap.h"
 #include "macros.h"
+#include "platform-macros.h"
 #include "spec/iap.h"
 
 void iap_notify_track_time_position(struct IAPContext* ctx, uint32_t pos_ms) {
@@ -83,8 +84,18 @@ void iap_notify_hold_switch_state(struct IAPContext* ctx, uint8_t state) {
     }
 }
 
+IAPBool iap_periodic_tick(struct IAPContext* ctx) {
+    ctx->flushing_notifications = iap_true;
+    ctx->notification_tick += 1;
+    if(!ctx->send_busy) {
+        check_ret(_iap_flush_notification(ctx), iap_false);
+    }
+    return iap_true;
+}
+
 #define send_notify(PayloadType, StateType, set)                                                                                                                     \
     if(ctx->notifications & (1 << StateType)) {                                                                                                                      \
+        print("notification " #StateType);                                                                                                                           \
         struct PayloadType* payload = iap_span_alloc(&request, sizeof(*payload));                                                                                    \
         check_ret(payload != NULL, iap_false);                                                                                                                       \
         payload->type = StateType;                                                                                                                                   \
@@ -96,6 +107,15 @@ void iap_notify_hold_switch_state(struct IAPContext* ctx, uint8_t state) {
 
 IAPBool _iap_flush_notification(struct IAPContext* ctx) {
     struct IAPSpan request = _iap_get_buffer_for_send_payload(ctx);
+
+    /* [1] P.257:
+     *  Notifications for enabled events are sent every 500 ms,
+     *  with the exception of volume change notifications, which are sent every 100 ms.
+     */
+    if(ctx->notification_tick % 5 != 0) {
+        goto freq_events;
+    }
+
     send_notify(IAPIPodStateTrackTimePositionMSecPayload,
                 IAPIPodStateType_TrackTimePositionMSec,
                 payload->position_ms = swap_32(ctx->notification_data.track_time_position_ms));
@@ -111,10 +131,6 @@ IAPBool _iap_flush_notification(struct IAPContext* ctx) {
     send_notify(IAPIPodStatePlayStatusPayload,
                 IAPIPodStateType_PlayStatus,
                 payload->status = ctx->notification_data.play_status);
-    send_notify(IAPIPodStateVolumePayload,
-                IAPIPodStateType_Volume,
-                payload->mute_state = ctx->notification_data.mute_state;
-                payload->ui_volume  = ctx->notification_data.volume);
     send_notify(IAPIPodStatePowerPayload,
                 IAPIPodStateType_Power,
                 payload->power_state   = ctx->notification_data.power_state;
@@ -132,6 +148,11 @@ IAPBool _iap_flush_notification(struct IAPContext* ctx) {
                 payload->day    = ctx->notification_data.time_setting.day;
                 payload->hour   = ctx->notification_data.time_setting.hour;
                 payload->minute = ctx->notification_data.time_setting.minute);
+freq_events:
+    send_notify(IAPIPodStateVolumePayload,
+                IAPIPodStateType_Volume,
+                payload->mute_state = ctx->notification_data.mute_state;
+                payload->ui_volume  = ctx->notification_data.volume);
 
     ctx->flushing_notifications = iap_false;
     return iap_true;

@@ -25,6 +25,7 @@ IAPBool iap_init_ctx(struct IAPContext* ctx) {
     ctx->trans_id                     = 0;
     ctx->enabled_notifications        = 0;
     ctx->notifications                = 0;
+    ctx->notification_tick            = 0;
     ctx->send_busy                    = iap_false;
     ctx->flushing_notifications       = iap_false;
     ctx->phase                        = IAPPhase_Connected;

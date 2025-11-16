@@ -28,10 +28,11 @@ struct IAPContext {
     IAPHandler handler_override;
     /* iap.c */
     uint16_t trans_id;
-    /* notifications */
+    /* notification.c */
     uint32_t               enabled_notifications;
     uint32_t               notifications;
     struct _IAPNotifyState notification_data;
+    uint8_t                notification_tick;
     /* _iap_send_hid_reports */
     uint8_t hid_send_staging_buf[0x3F /* max hid report size */ + 1 /* report id */] __attribute__((aligned(32)));
     IAPBool send_busy;

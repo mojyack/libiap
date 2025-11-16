@@ -26,6 +26,7 @@ executable(
         'src/iap/fid-token-values.c',
         'src/iap/hid.c',
         'src/iap/iap.c',
+        'src/iap/notification.c',
         'src/iap/span.c',
         'src/iap/vector.c',
         'src/main.cpp',
