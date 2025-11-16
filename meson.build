@@ -30,6 +30,7 @@ executable(
         'src/iap/vector.c',
         'src/main.cpp',
         'src/platform.cpp',
+        'src/track.cpp',
     ),
     dependencies: deps,
     install: true,

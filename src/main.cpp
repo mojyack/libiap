@@ -6,71 +6,17 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include "context.hpp"
 #include "flac.hpp"
 #include "iap/iap.h"
 #include "macros/autoptr.hpp"
 #include "macros/unwrap.hpp"
 #include "platform.hpp"
-#include "util/charconv.hpp"
 #include "util/hexdump.hpp"
-#include "util/split.hpp"
 
 declare_autoptr(SndPCM, snd_pcm_t, snd_pcm_close);
 
 namespace {
-struct Track {
-    size_t                 total_samples;
-    uint32_t               sample_rate;
-    uint8_t                channels;
-    std::vector<int16_t>   data;
-    std::vector<std::byte> cover;
-    std::string            album;
-    std::string            artist;
-    std::string            title;
-    uint16_t               year  = 0;
-    uint8_t                month = 0;
-    uint8_t                day   = 0;
-};
-
-auto tracks        = std::vector<Track>();
-auto current_track = 0uz;
-auto pcm_cursor    = 0uz;
-
-auto set_comment_value(std::string& dest, std::string_view comment, std::string_view key) -> void {
-    if(comment.starts_with(key)) {
-        dest = std::string(comment.substr(key.size()));
-    }
-}
-
-auto build_track(AudioFile audio) -> std::optional<Track> {
-    auto ret = Track{
-        .total_samples = audio.total_samples,
-        .sample_rate   = audio.sample_rate,
-        .channels      = audio.channels,
-        .data          = std::move(audio.data),
-        .cover         = std::move(audio.cover),
-    };
-    // parse comments
-    auto release = std::string();
-    for(const auto& comment : audio.comments) {
-        set_comment_value(ret.album, comment, "ALBUM=");
-        set_comment_value(ret.artist, comment, "ARTIST=");
-        set_comment_value(ret.title, comment, "TITLE=");
-        set_comment_value(release, comment, "DATE=");
-    }
-    if(!release.empty()) {
-        const auto elms = split(release, "-");
-        ensure(elms.size() == 3);
-        unwrap(year, from_chars<uint16_t>(elms[0]));
-        unwrap(month, from_chars<uint8_t>(elms[1]));
-        unwrap(day, from_chars<uint8_t>(elms[2]));
-        ret.year  = year;
-        ret.month = month;
-        ret.day   = day;
-    }
-    return ret;
-}
-
 auto read_stdin() -> bool {
     auto line = std::string();
     std::getline(std::cin, line);
@@ -93,7 +39,7 @@ auto main(const int argc, const char* const* argv) -> int {
         PRINT("artist={}", track.artist);
         PRINT("date={}-{}-{}", track.year, track.month, track.day);
         PRINT("samples={}", track.total_samples);
-        tracks.push_back(std::move(track));
+        context.tracks.push_back(std::move(track));
     }
 
     auto platform = LinuxPlatformData{
@@ -130,8 +76,8 @@ loop:
     auto revents = (unsigned short)(0);
     ensure(snd_pcm_poll_descriptors_revents(snd.get(), &pfds[2], pcm_pfds_count, &revents) == 0);
     if(revents & POLLOUT) {
-        const auto& pcm = tracks[current_track].data;
-        const auto  ret = snd_pcm_writei(snd.get(), pcm.data() + pcm_cursor, pcm.size() - pcm_cursor);
+        const auto& pcm = context.tracks[context.current_track].data;
+        const auto  ret = snd_pcm_writei(snd.get(), pcm.data() + context.pcm_cursor, pcm.size() - context.pcm_cursor);
         ensure(ret > 0);
     }
     goto loop;
