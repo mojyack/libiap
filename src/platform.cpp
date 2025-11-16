@@ -49,8 +49,43 @@ IAPBool iap_platform_get_play_status(void* platform, struct IAPPlatformPlayStatu
 }
 
 IAPBool iap_platform_control(void* platform, enum IAPPlatformControl control) {
-    (void)platform;
+    constexpr auto error_value = iap_false;
+
+    auto& ctx = ((struct LinuxPlatformData*)platform)->ctx;
     std::println("control {}", int(control));
+    switch(control) {
+    case IAPPlatformControl_TogglePlayPause: {
+        switch(ctx.play_state) {
+        case PlayState::Stopped:
+            bail_v("play/pause toggle while stopped");
+        case PlayState::Playing:
+            ensure_v(ctx.set_state(PlayState::Paused));
+            break;
+        case PlayState::Paused:
+            ensure_v(ctx.set_state(PlayState::Playing));
+            break;
+        }
+    } break;
+    case IAPPlatformControl_Play: {
+        ensure_v(ctx.set_state(PlayState::Paused));
+    } break;
+    case IAPPlatformControl_Pause: {
+        ensure_v(ctx.set_state(PlayState::Paused));
+    } break;
+    case IAPPlatformControl_Stop: {
+        ensure_v(ctx.set_state(PlayState::Stopped));
+    } break;
+    case IAPPlatformControl_Next: {
+        ensure_v(ctx.current_track + 1 < ctx.tracks.size());
+        ctx.current_track += 1;
+        ctx.pcm_cursor = 0;
+    } break;
+    case IAPPlatformControl_Prev: {
+        ensure_v(ctx.current_track > 1);
+        ctx.current_track -= 1;
+        ctx.pcm_cursor = 0;
+    } break;
+    }
     return iap_true;
 }
 
