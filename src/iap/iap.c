@@ -219,7 +219,7 @@ static int32_t handle_in_auth(struct IAPContext* ctx, uint8_t lingo, uint16_t co
         } break;
         case IAPGeneralCommandID_GetSupportedEventNotification: {
             alloc_response(IAPRetSupportedEventNotificationPayload, payload);
-            payload->mask = swap_64(0);
+            payload->mask = swap_64(IAPSetEventNotificationEvents_FlowControl);
             return IAPGeneralCommandID_RetSupportedEventNotification;
         } break;
         }
