@@ -1,6 +1,8 @@
 #pragma once
 #include <stdint.h>
 
+/* [1] P.184 Table 3-112 Notification bitmask bits */
+
 enum IAPEventNotificationEvents {
     IAPSetEventNotificationEvents_FlowControl         = 1 << 2,
     IAPSetEventNotificationEvents_RadioTagging        = 1 << 3,
