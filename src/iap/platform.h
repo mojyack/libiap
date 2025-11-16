@@ -16,7 +16,7 @@ struct IAPPlatformPlayStatus {
     uint32_t track_pos_ms;
     uint32_t track_index;
     uint32_t track_count;
-    uint8_t  track_caps; /* IAPIPodStateTrackCapBits */
+    uint32_t track_caps; /* IAPIPodStateTrackCapBits */
     uint8_t  state;      /* IAPIPodStatePlayStatus */
 };
 
@@ -45,7 +45,7 @@ struct IAPPlatformPowerStatus {
 /* iap_platform_get_indexed_track_info */
 struct IAPPlatformTrackInfo {
     uint32_t*           total_ms;
-    uint8_t*            caps; /* IAPIPodStateTrackCapBits */
+    uint32_t*           caps; /* IAPIPodStateTrackCapBits */
     struct IAPDateTime* release_date;
     struct IAPSpan*     artist;
     struct IAPSpan*     composer;

@@ -23,6 +23,7 @@ IAPBool iap_init_ctx(struct IAPContext* ctx) {
     ctx->on_send_complete             = NULL;
     ctx->handler_override             = NULL;
     ctx->trans_id                     = 0;
+    ctx->notifications                = 0;
     ctx->send_busy                    = iap_false;
     ctx->phase                        = IAPPhase_Connected;
     return iap_true;
@@ -419,7 +420,7 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
             switch(request_payload->type) {
             case IAPIndexedPlayingTrackInfoType_TrackCapsInfo: {
                 uint32_t                    length;
-                uint8_t                     caps;
+                uint32_t                    caps;
                 struct IAPPlatformTrackInfo info = {.total_ms = &length, .caps = &caps};
                 check_ret(iap_platform_get_indexed_track_info(ctx->platform, swap_32(request_payload->track_index), &info), -IAPAckStatus_ECommandFailed);
                 alloc_response(IAPRetIndexedPlayingTrackInfoTrackCapsInfoPayload, payload);
@@ -498,7 +499,7 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
             switch(request_payload->type) {
             case IAPExtendedIndexedPlayingTrackInfoType_TrackCapsInfo: {
                 uint32_t                    length;
-                uint8_t                     caps;
+                uint32_t                    caps;
                 struct IAPPlatformTrackInfo info = {.total_ms = &length, .caps = &caps};
                 check_ret(iap_platform_get_indexed_track_info(ctx->platform, swap_32(request_payload->track_index), &info), -IAPAckStatus_ECommandFailed);
                 alloc_response(IAPExtendedRetIndexedPlayingTrackInfoTrackCapsInfoPayload, payload);
