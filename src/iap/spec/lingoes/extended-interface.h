@@ -42,7 +42,7 @@ enum IAPExtendedInterfaceCommandID {
     IAPExtendedInterfaceCommandID_ReturnIndexedPlayingTrackAlbumName         = 0x0025, /* 1.00, NoAuth, from dev, indexed-playing-track-string.h */
     IAPExtendedInterfaceCommandID_SetPlayStatusChangeNotification            = 0x0026, /* 1.00, NoAuth, from acc, play-status-change-notification.h */
     IAPExtendedInterfaceCommandID_PlayStatusChangeNotification               = 0x0027, /* 1.00, NoAuth, from dev, play-status-change-notification.h */
-    IAPExtendedInterfaceCommandID_PlayCurrentSelection                       = 0x0028, /* deprecated */
+    IAPExtendedInterfaceCommandID_PlayCurrentSelection                       = 0x0028, /* 1.00, NoAuth, from acc, play-current-selection.h */
     IAPExtendedInterfaceCommandID_PlayControl                                = 0x0029, /* 1.00, NoAuth, from acc, play-control.h */
     IAPExtendedInterfaceCommandID_GetTrackArtworkTimes                       = 0x002A, /* 1.10, NoAuth, from acc, display-remote/track-artwork-times.h */
     IAPExtendedInterfaceCommandID_RetTrackArtworkTimes                       = 0x002B, /* 1.10, NoAuth, from dev, display-remote/track-artwork-times.h */
@@ -98,6 +98,7 @@ enum IAPExtendedInterfaceCommandID {
 #include "extended-interface/ipod-ack.h"
 #include "extended-interface/mono-display-image-limits.h"
 #include "extended-interface/play-control.h"
+#include "extended-interface/play-current-selection.h"
 #include "extended-interface/play-status-change-notification.h"
 #include "extended-interface/play-status.h"
 #include "extended-interface/playlist-info.h"
