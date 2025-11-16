@@ -1,6 +1,8 @@
 #pragma once
+#include "context.hpp"
 
 struct LinuxPlatformData {
-    int fd;
+    int     fd;
+    Context ctx;
 };
 

@@ -16,3 +16,7 @@ struct Track {
 };
 
 auto build_track(AudioFile audio) -> std::optional<Track>;
+
+constexpr auto samples_to_ms(const size_t samples) -> size_t {
+    return 1000 * samples / 44100 / 2 /* LR */;
+}

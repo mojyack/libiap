@@ -1,5 +1,6 @@
 #include <unistd.h>
 
+#include "context.hpp"
 #include "iap/platform.h"
 #include "macros/assert.hpp"
 #include "platform.hpp"
@@ -30,12 +31,20 @@ IAPBool iap_platform_get_ipod_serial_num(void* platform, struct IAPSpan* serial)
 }
 
 IAPBool iap_platform_get_play_status(void* platform, struct IAPPlatformPlayStatus* status) {
-    (void)platform;
-    status->track_total_ms = 10 * 1000;
-    status->track_pos_ms   = 5 * 1000;
-    status->track_index    = 0;
-    status->track_count    = 8;
-    status->state          = IAPIPodStatePlayStatus_PlaybackPaused;
+    const auto& ctx = ((struct LinuxPlatformData*)platform)->ctx;
+    if(ctx.play_state != PlayState::Stopped) {
+        const auto& track      = ctx.tracks[ctx.current_track];
+        status->track_total_ms = samples_to_ms(track.data.size());
+        status->track_pos_ms   = samples_to_ms(ctx.pcm_cursor);
+        status->track_index    = ctx.current_track;
+        status->track_count    = ctx.tracks.size();
+    }
+    constexpr auto state_table = std::array{
+        IAPIPodStatePlayStatus_PlaybackStopped,
+        IAPIPodStatePlayStatus_Playing,
+        IAPIPodStatePlayStatus_PlaybackPaused,
+    };
+    status->state = state_table[int(ctx.play_state)];
     return iap_true;
 }
 
@@ -109,33 +118,32 @@ IAPBool iap_platform_get_hold_switch_state(void* platform, IAPBool* state) {
 IAPBool iap_platform_get_indexed_track_info(void* platform, uint32_t index, struct IAPPlatformTrackInfo* info) {
     constexpr auto error_value = iap_false;
 
-    (void)index;
+    const auto& ctx = ((struct LinuxPlatformData*)platform)->ctx;
+    ensure_v(index < ctx.tracks.size());
+    ensure_v(ctx.play_state != PlayState::Stopped);
+    const auto& track = ctx.tracks[index];
     if(info->total_ms != NULL) {
-        *info->total_ms = 10 * 1000;
+        *info->total_ms = samples_to_ms(track.data.size());
     }
     if(info->release_date != NULL) {
-        info->release_date->year    = 2000;
-        info->release_date->month   = 0;
-        info->release_date->day     = 0;
+        info->release_date->year    = track.year;
+        info->release_date->month   = track.month;
+        info->release_date->day     = track.day;
         info->release_date->hour    = 0;
         info->release_date->minute  = 0;
         info->release_date->seconds = 0;
     }
     if(info->artist != NULL) {
-        static const char* str = "(artist)";
-        ensure_v(iap_span_append(info->artist, str, sizeof(str)));
+        ensure_v(iap_span_append(info->artist, track.artist.data(), track.artist.size() + 1));
     }
     if(info->composer != NULL) {
-        static const char* str = "(composer)";
-        ensure_v(iap_span_append(info->composer, str, sizeof(str)));
+        ensure_v(iap_span_append(info->composer, track.artist.data(), track.artist.size() + 1));
     }
     if(info->album != NULL) {
-        static const char* str = "(album)";
-        ensure_v(iap_span_append(info->album, str, sizeof(str)));
+        ensure_v(iap_span_append(info->album, track.album.data(), track.album.size() + 1));
     }
     if(info->title != NULL) {
-        static const char* str = "(title)";
-        ensure_v(iap_span_append(info->title, str, sizeof(str)));
+        ensure_v(iap_span_append(info->title, track.title.data(), track.title.size() + 1));
     }
     return iap_true;
 }
