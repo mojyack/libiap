@@ -74,10 +74,12 @@ struct IAPRetIndexedPlayingTrackInfoLyricsPayload {
     char     lyrics[];
 } __attribute__((packed));
 
+struct IAPArtworkCount {
+    uint16_t format; /* IAPArtworkPixelFormats */
+    uint16_t count;
+} __attribute__((packed));
+
 struct IAPRetIndexedPlayingTrackInfoArtworkCountPayload {
-    uint8_t type; /* = IAPIndexedPlayingTrackInfoType_ArtworkCount */
-    struct {
-        uint16_t format; /* IAPArtworkPixelFormats */
-        uint16_t count;
-    } __attribute__((packed)) data[]; /* or 0x08 to indicate no counts */
+    uint8_t                type;   /* = IAPIndexedPlayingTrackInfoType_ArtworkCount */
+    struct IAPArtworkCount data[]; /* or 0x08 to indicate no counts */
 } __attribute__((packed));

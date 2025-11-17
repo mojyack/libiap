@@ -473,8 +473,10 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
                 return IAPDisplayRemoteCommandID_RetIndexedPlayingTrackInfo;
             } break;
             case IAPIndexedPlayingTrackInfoType_ArtworkCount: {
-                warn("artwork not implemented");
-                return -IAPAckStatus_ECommandFailed;
+                alloc_response_extra(IAPRetIndexedPlayingTrackInfoArtworkCountPayload, payload, sizeof(struct IAPArtworkCount));
+                payload->data[0].format = 0;
+                payload->data[0].count  = swap_16(1);
+                return IAPDisplayRemoteCommandID_RetIndexedPlayingTrackInfo;
             } break;
             }
         } break;
