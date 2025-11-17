@@ -16,11 +16,16 @@ add_project_arguments('-Wno-c99-extensions', language: 'c')
 
 
 cpp = meson.get_compiler('cpp')
-deps = [dependency('flac++'), cpp.find_library('asound')]
+deps = [
+    dependency('flac++'),
+    dependency('Magick++'),
+    cpp.find_library('asound'),
+]
 
 executable(
     'app',
     files(
+        'src/artwork.cpp',
         'src/flac.cpp',
         'src/iap/debug.c',
         'src/iap/fid-token-values.c',

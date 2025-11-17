@@ -22,6 +22,7 @@ IAPBool iap_init_ctx(struct IAPContext* ctx) {
     ctx->send_buf_sending_range_end   = 0;
     ctx->on_send_complete             = NULL;
     ctx->handler_override             = NULL;
+    ctx->handling_trans_id            = -1;
     ctx->artwork_handle               = 0;
     ctx->trans_id                     = 0;
     ctx->enabled_notifications        = 0;
@@ -237,6 +238,14 @@ static int32_t handle_in_auth(struct IAPContext* ctx, uint8_t lingo, uint16_t co
 }
 
 static IAPBool send_artwork_chunk_cb(struct IAPContext* ctx) {
+    /*
+     * FIXME: while sending many large reports, like artwork chunks, write(fd, ...) stucks at some point.
+     * limit packet size as a workaround.
+     * my acc does not accept fragmented hid reports?
+     * or ipod-gadget kernel module problem?
+     */
+#define SINGLE_REPORT_QUIRK iap_true
+
     struct IAPSpan request = _iap_get_buffer_for_send_payload(ctx);
     if(ctx->artwork_chunk_index == 0) {
         struct IAPRetTrackArtworkDataFirstPayload* payload = iap_span_alloc(&request, sizeof(*payload));
@@ -249,19 +258,22 @@ static IAPBool send_artwork_chunk_cb(struct IAPContext* ctx) {
         payload->inset_top_left_y     = 0;
         payload->inset_bottom_right_x = payload->pixel_width;
         payload->inset_bottom_right_y = payload->pixel_height;
-        payload->stride               = payload->pixel_width; /* TODO: support stride */
+        payload->stride               = swap_32(IAP_ARTWORK_WIDTH * 2); /* TODO: support stride */
     } else {
         struct IAPRetTrackArtworkDataSubsequenctPayload* payload = iap_span_alloc(&request, sizeof(*payload));
 
         payload->index = swap_16(ctx->artwork_chunk_index);
     }
     struct IAPSpan artwork;
-    check_ret(iap_platform_get_artwork_ptr(ctx->platform, ctx->artwork_handle, &artwork), iap_false);
-    check_ret(iap_span_read(&artwork, ctx->artwork_cursor) != NULL, iap_false); /* skip already read chunk */
-    const size_t copy_size = min(request.size, artwork.size);
-    memcpy(request.ptr, artwork.ptr, copy_size);
-    check_ret(_iap_send_packet(ctx, IAPLingoID_DisplayRemote, IAPDisplayRemoteCommandID_RetTrackArtworkData, (ctx->trans_id += 1), request.ptr), iap_false);
-    if(artwork.size > copy_size) {
+    size_t         copy_size = 0;
+    if(!SINGLE_REPORT_QUIRK || ctx->artwork_chunk_index != 0) {
+        check_ret(iap_platform_get_artwork_ptr(ctx->platform, ctx->artwork_handle, &artwork), iap_false);
+        check_ret(iap_span_read(&artwork, ctx->artwork_cursor) != NULL, iap_false); /* skip already read chunk */
+        copy_size = min((SINGLE_REPORT_QUIRK ? 48 : request.size), artwork.size);
+        memcpy(iap_span_alloc(&request, copy_size), iap_span_read(&artwork, copy_size), copy_size);
+    }
+    check_ret(_iap_send_packet(ctx, IAPLingoID_DisplayRemote, IAPDisplayRemoteCommandID_RetTrackArtworkData, ctx->artwork_trans_id, request.ptr), iap_false);
+    if(artwork.size > 0) {
         /* more to send, ask to call again */
         ctx->artwork_cursor += copy_size;
         ctx->artwork_chunk_index += 1;
@@ -269,6 +281,7 @@ static IAPBool send_artwork_chunk_cb(struct IAPContext* ctx) {
     } else {
         /* finished, free artwork */
         check_ret(iap_platform_close_artwork(ctx->platform, ctx->artwork_handle), iap_false);
+        ctx->artwork_handle = 0;
     }
     return iap_true;
 }
@@ -540,6 +553,7 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
             ctx->artwork_handle      = handle;
             ctx->artwork_cursor      = 0;
             ctx->artwork_chunk_index = 0;
+            ctx->artwork_trans_id    = ctx->handling_trans_id;
             check_ret(send_artwork_chunk_cb(ctx), -IAPAckStatus_ECommandFailed);
             /* responded in send_artwork_chunk_cb, no need to do it here */
             response->ptr = NULL;
@@ -553,7 +567,7 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
                   swap_16(request_payload->format_id),
                   swap_16(request_payload->artwork_index),
                   swap_16(request_payload->artwork_count));
-            const uint16_t count = swap_16(request_payload->artwork_count) == 0;
+            const uint16_t count = swap_16(request_payload->artwork_count);
             check_ret(count == 0 || count == 1, -IAPAckStatus_ECommandFailed, "not implemented");
 
             alloc_response_extra(IAPRetTrackArtworkTimesPayload, payload, sizeof(uint32_t) * count);
@@ -926,9 +940,8 @@ IAPBool _iap_feed_packet(struct IAPContext* ctx, const uint8_t* const data, cons
     print("processing iap request 0x%02X(%s):0x%04X length=%d while phase=%d", lingo, _iap_lingo_str(lingo), command, length, ctx->phase);
 
     /* request handling */
-    uint16_t trans_id;
-    /* assume trans id is enabled */
-    check_ret(iap_span_read_16(&request, &trans_id), iap_false);
+    check_ret(iap_span_read_16(&request, &buf.u16), iap_false);
+    ctx->handling_trans_id = buf.u16;
 
     /* pick handler function */
     IAPHandler handler;
@@ -958,7 +971,7 @@ IAPBool _iap_feed_packet(struct IAPContext* ctx, const uint8_t* const data, cons
         ret      = build_ipod_ack_response(lingo, command, -ret, &response);
         check_ret(ret >= 0, iap_false);
     }
-    check_ret(_iap_send_packet(ctx, lingo, ret, trans_id, response.ptr), iap_false);
+    check_ret(_iap_send_packet(ctx, lingo, ret, ctx->handling_trans_id, response.ptr), iap_false);
     return iap_true;
 }
 

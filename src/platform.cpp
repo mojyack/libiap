@@ -1,6 +1,8 @@
 #include <unistd.h>
 
+#include "artwork.hpp"
 #include "context.hpp"
+#include "iap/platform-macros.h"
 #include "iap/platform.h"
 #include "macros/assert.hpp"
 #include "platform.hpp"
@@ -20,7 +22,7 @@ void iap_platform_free(void* platform, void* ptr) {
 int iap_platform_send_hid_report(void* platform, const void* ptr, size_t size) {
     std::println("====== dev: {} bytes ======", size);
     dump_hex(std::span{(uint8_t*)ptr, size});
-    const int fd = ((struct LinuxPlatformData*)platform)->fd;
+    const auto fd = ((struct LinuxPlatformData*)platform)->fd;
     return write(fd, ptr, size);
 }
 
@@ -38,7 +40,7 @@ IAPBool iap_platform_get_play_status(void* platform, struct IAPPlatformPlayStatu
         status->track_pos_ms   = samples_to_ms(ctx.pcm_cursor);
         status->track_index    = ctx.current_track;
         status->track_count    = ctx.tracks.size();
-        status->track_caps     = IAPIPodStateTrackCapBits_HasAlbumArts | IAPIPodStateTrackCapBits_HasReleaseDate;
+        status->track_caps     = (track.cover.empty() ? 0 : IAPIPodStateTrackCapBits_HasAlbumArts) | IAPIPodStateTrackCapBits_HasReleaseDate;
     }
     constexpr auto state_table = std::array{
         IAPIPodStatePlayStatus_PlaybackStopped,
@@ -162,7 +164,7 @@ IAPBool iap_platform_get_indexed_track_info(void* platform, uint32_t index, stru
         *info->total_ms = samples_to_ms(track.data.size());
     }
     if(info->caps != NULL) {
-        *info->caps = IAPIPodStateTrackCapBits_HasAlbumArts | IAPIPodStateTrackCapBits_HasReleaseDate;
+        *info->caps = (track.cover.empty() ? 0 : IAPIPodStateTrackCapBits_HasAlbumArts) | IAPIPodStateTrackCapBits_HasReleaseDate;
     }
     if(info->release_date != NULL) {
         info->release_date->year    = track.year;
@@ -188,15 +190,29 @@ IAPBool iap_platform_get_indexed_track_info(void* platform, uint32_t index, stru
 }
 
 IAPBool iap_platform_open_artwork(void* platform, uint32_t index, uintptr_t* handle) {
-    return iap_false;
+    constexpr auto error_value = iap_false;
+
+    const auto& ctx = ((struct LinuxPlatformData*)platform)->ctx;
+    ensure_v(index < ctx.tracks.size());
+    const auto& track = ctx.tracks[index];
+
+    *handle = (uintptr_t)decode_blob(track.cover, IAP_ARTWORK_WIDTH, IAP_ARTWORK_WIDTH);
+    ensure_v(*handle != 0);
+
+    return iap_true;
 }
 
 IAPBool iap_platform_get_artwork_ptr(void* platform, uintptr_t handle, struct IAPSpan* span) {
-    return iap_false;
+    (void)platform;
+    span->ptr  = (uint8_t*)handle;
+    span->size = IAP_ARTWORK_WIDTH * IAP_ARTWORK_HEIGHT * 2;
+    return iap_true;
 }
 
 IAPBool iap_platform_close_artwork(void* platform, uintptr_t handle) {
-    return iap_false;
+    (void)platform;
+    delete[](std::byte*)handle;
+    return iap_true;
 }
 
 void iap_platform_dump_hex(const void* ptr, size_t size) {

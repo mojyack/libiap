@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include "artwork.hpp"
 #include "context.hpp"
 #include "flac.hpp"
 #include "iap/iap.h"
@@ -84,7 +85,7 @@ auto Context::set_state(const PlayState new_state) -> bool {
 
 auto main(const int argc, const char* const* argv) -> int {
     auto platform = LinuxPlatformData{
-        .fd = open("/dev/iap0", O_RDWR | O_NONBLOCK),
+        .fd = open("/dev/iap0", O_RDWR),
     };
     ensure(platform.fd >= 0);
     iap_ctx = IAPContext{.platform = &platform};
@@ -153,9 +154,15 @@ loop:
     if(revents & POLLOUT) {
         const auto& pcm = ctx.tracks[ctx.current_track].data;
         const auto  ret = snd_pcm_writei(snd.get(), pcm.data() + ctx.pcm_cursor, (pcm.size() - ctx.pcm_cursor) / 2);
-        ensure(ret > 0);
-        ctx.pcm_cursor += ret * 2;
-        iap_notify_track_time_position(&iap_ctx, samples_to_ms(ctx.pcm_cursor));
+        if(ret > 0) {
+            ctx.pcm_cursor += ret * 2;
+            iap_notify_track_time_position(&iap_ctx, samples_to_ms(ctx.pcm_cursor));
+        } else if(ret == -EPIPE) {
+            /* underrun */
+            ensure(snd_pcm_prepare(snd.get()) == 0);
+        } else {
+            bail("alsa error {}({})", ret, strerror(-ret));
+        }
     }
     goto loop;
     return 0;

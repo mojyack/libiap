@@ -26,10 +26,12 @@ struct IAPContext {
     IAPOnSendComplete on_send_complete;
     /* _iap_feed_packet */
     IAPHandler handler_override;
+    int32_t    handling_trans_id;
     /* iap.c */
     uintptr_t artwork_handle;
     size_t    artwork_cursor;
     uint16_t  artwork_chunk_index;
+    int32_t   artwork_trans_id;
     uint16_t  trans_id;
     /* notification.c */
     uint32_t               enabled_notifications;
