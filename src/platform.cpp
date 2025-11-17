@@ -187,6 +187,18 @@ IAPBool iap_platform_get_indexed_track_info(void* platform, uint32_t index, stru
     return iap_true;
 }
 
+IAPBool iap_platform_open_artwork(void* platform, uint32_t index, uintptr_t* handle) {
+    return iap_false;
+}
+
+IAPBool iap_platform_get_artwork_ptr(void* platform, uintptr_t handle, struct IAPSpan* span) {
+    return iap_false;
+}
+
+IAPBool iap_platform_close_artwork(void* platform, uintptr_t handle) {
+    return iap_false;
+}
+
 void iap_platform_dump_hex(const void* ptr, size_t size) {
     dump_hex(std::span{(uint8_t*)ptr, size});
 }

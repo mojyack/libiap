@@ -22,6 +22,7 @@ IAPBool iap_init_ctx(struct IAPContext* ctx) {
     ctx->send_buf_sending_range_end   = 0;
     ctx->on_send_complete             = NULL;
     ctx->handler_override             = NULL;
+    ctx->artwork_handle               = 0;
     ctx->trans_id                     = 0;
     ctx->enabled_notifications        = 0;
     ctx->notifications                = 0;
@@ -33,6 +34,9 @@ IAPBool iap_init_ctx(struct IAPContext* ctx) {
 }
 
 IAPBool iap_deinit_ctx(struct IAPContext* ctx) {
+    if(ctx->artwork_handle != 0) {
+        iap_platform_close_artwork(ctx->platform, ctx->artwork_handle);
+    }
     iap_platform_free(ctx->platform, ctx->hid_recv_buf);
     iap_platform_free(ctx->platform, ctx->send_buf);
     return iap_true;
@@ -230,6 +234,43 @@ static int32_t handle_in_auth(struct IAPContext* ctx, uint8_t lingo, uint16_t co
         break;
     }
     return -IAPAckStatus_EUnknownID;
+}
+
+static IAPBool send_artwork_chunk_cb(struct IAPContext* ctx) {
+    struct IAPSpan request = _iap_get_buffer_for_send_payload(ctx);
+    if(ctx->artwork_chunk_index == 0) {
+        struct IAPRetTrackArtworkDataFirstPayload* payload = iap_span_alloc(&request, sizeof(*payload));
+
+        payload->index                = swap_16(ctx->artwork_chunk_index);
+        payload->pixel_format         = IAP_COLOR_ARTWORK ? IAPArtworkPixelFormats_RGB565LE : IAPArtworkPixelFormats_Mono;
+        payload->pixel_width          = swap_16(IAP_ARTWORK_WIDTH);
+        payload->pixel_height         = swap_16(IAP_ARTWORK_HEIGHT);
+        payload->inset_top_left_x     = 0;
+        payload->inset_top_left_y     = 0;
+        payload->inset_bottom_right_x = payload->pixel_width;
+        payload->inset_bottom_right_y = payload->pixel_height;
+        payload->stride               = payload->pixel_width; /* TODO: support stride */
+    } else {
+        struct IAPRetTrackArtworkDataSubsequenctPayload* payload = iap_span_alloc(&request, sizeof(*payload));
+
+        payload->index = swap_16(ctx->artwork_chunk_index);
+    }
+    struct IAPSpan artwork;
+    check_ret(iap_platform_get_artwork_ptr(ctx->platform, ctx->artwork_handle, &artwork), iap_false);
+    check_ret(iap_span_read(&artwork, ctx->artwork_cursor) != NULL, iap_false); /* skip already read chunk */
+    const size_t copy_size = min(request.size, artwork.size);
+    memcpy(request.ptr, artwork.ptr, copy_size);
+    check_ret(_iap_send_packet(ctx, IAPLingoID_DisplayRemote, IAPDisplayRemoteCommandID_RetTrackArtworkData, (ctx->trans_id += 1), request.ptr), iap_false);
+    if(artwork.size > copy_size) {
+        /* more to send, ask to call again */
+        ctx->artwork_cursor += copy_size;
+        ctx->artwork_chunk_index += 1;
+        ctx->on_send_complete = send_artwork_chunk_cb;
+    } else {
+        /* finished, free artwork */
+        check_ret(iap_platform_close_artwork(ctx->platform, ctx->artwork_handle), iap_false);
+    }
+    return iap_true;
 }
 
 static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t command, struct IAPSpan* request, struct IAPSpan* response) {
@@ -487,6 +528,22 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
             payload->formats[0].image_width  = swap_16(IAP_ARTWORK_WIDTH);
             payload->formats[0].image_height = swap_16(IAP_ARTWORK_HEIGHT);
             return IAPDisplayRemoteCommandID_RetArtworkFormats;
+        } break;
+        case IAPDisplayRemoteCommandID_GetTrackArtworkData: {
+            const struct IAPGetTrackArtworkDataPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
+            check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
+            check_ret(request_payload->format_id == 0, -IAPAckStatus_EBadParameter);
+            check_ret(request_payload->offset_ms == 0, -IAPAckStatus_EBadParameter);
+
+            uintptr_t handle;
+            check_ret(iap_platform_open_artwork(ctx->platform, swap_32(request_payload->track_index), &handle), -IAPAckStatus_EBadParameter);
+            ctx->artwork_handle      = handle;
+            ctx->artwork_cursor      = 0;
+            ctx->artwork_chunk_index = 0;
+            check_ret(send_artwork_chunk_cb(ctx), -IAPAckStatus_ECommandFailed);
+            /* responded in send_artwork_chunk_cb, no need to do it here */
+            response->ptr = NULL;
+            return 0;
         } break;
         case IAPDisplayRemoteCommandID_GetTrackArtworkTimes: {
             const struct IAPGetTrackArtworkTimesPayload* request_payload = iap_span_read(request, sizeof(*request_payload));

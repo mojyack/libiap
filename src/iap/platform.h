@@ -69,6 +69,9 @@ IAPBool iap_platform_get_date_time(void* platform, struct IAPDateTime* time);
 IAPBool iap_platform_get_backlight_level(void* platform, uint8_t* level);
 IAPBool iap_platform_get_hold_switch_state(void* platform, IAPBool* state);
 IAPBool iap_platform_get_indexed_track_info(void* platform, uint32_t index, struct IAPPlatformTrackInfo* info);
+IAPBool iap_platform_open_artwork(void* platform, uint32_t index, uintptr_t* handle);
+IAPBool iap_platform_get_artwork_ptr(void* platform, uintptr_t handle, struct IAPSpan* span);
+IAPBool iap_platform_close_artwork(void* platform, uintptr_t handle);
 
 /* debugging */
 void iap_platform_dump_hex(const void* ptr, size_t size);
