@@ -478,6 +478,14 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
             } break;
             }
         } break;
+        case IAPDisplayRemoteCommandID_GetArtworkFormats: {
+            alloc_response_extra(IAPRetArtworkFormatsPayload, payload, sizeof(struct IAPArtworkFormat));
+            payload->formats[0].format_id    = 0;
+            payload->formats[0].pixel_format = IAP_COLOR_ARTWORK ? IAPArtworkPixelFormats_RGB565LE : IAPArtworkPixelFormats_Mono;
+            payload->formats[0].image_width  = swap_16(IAP_ARTWORK_WIDTH);
+            payload->formats[0].image_height = swap_16(IAP_ARTWORK_HEIGHT);
+            return IAPDisplayRemoteCommandID_RetArtworkFormats;
+        } break;
         case IAPDisplayRemoteCommandID_GetTrackArtworkTimes: {
             const struct IAPGetTrackArtworkTimesPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);

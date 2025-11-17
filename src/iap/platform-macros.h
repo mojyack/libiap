@@ -18,3 +18,7 @@
         printf(__VA_ARGS__); \
         printf("\x1B[0m\n"); \
     }
+
+#define IAP_ARTWORK_WIDTH  256
+#define IAP_ARTWORK_HEIGHT 256
+#define IAP_COLOR_ARTWORK  iap_true
