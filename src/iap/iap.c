@@ -478,6 +478,19 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
             } break;
             }
         } break;
+        case IAPDisplayRemoteCommandID_GetTrackArtworkTimes: {
+            const struct IAPGetTrackArtworkTimesPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
+            check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
+            print("get track artwork times track=%u format=0x%02X index=%u count=%u",
+                  swap_32(request_payload->track_index),
+                  swap_16(request_payload->format_id),
+                  swap_16(request_payload->artwork_index),
+                  swap_16(request_payload->artwork_count));
+            check_ret(swap_16(request_payload->artwork_count) == 0, -IAPAckStatus_ECommandFailed, "not implemented");
+
+            alloc_response(IAPRetTrackArtworkTimesPayload, payload);
+            return IAPDisplayRemoteCommandID_RetTrackArtworkTimes;
+        } break;
         }
         break;
     case IAPLingoID_ExtendedInterface:
