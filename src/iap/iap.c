@@ -496,9 +496,13 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
                   swap_16(request_payload->format_id),
                   swap_16(request_payload->artwork_index),
                   swap_16(request_payload->artwork_count));
-            check_ret(swap_16(request_payload->artwork_count) == 0, -IAPAckStatus_ECommandFailed, "not implemented");
+            const uint16_t count = swap_16(request_payload->artwork_count) == 0;
+            check_ret(count == 0 || count == 1, -IAPAckStatus_ECommandFailed, "not implemented");
 
-            alloc_response(IAPRetTrackArtworkTimesPayload, payload);
+            alloc_response_extra(IAPRetTrackArtworkTimesPayload, payload, sizeof(uint32_t) * count);
+            for(uint16_t i = 0; i < count; i += 1) {
+                payload->offsets_ms[i] = 0;
+            }
             return IAPDisplayRemoteCommandID_RetTrackArtworkTimes;
         } break;
         }
