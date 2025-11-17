@@ -402,7 +402,7 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
                 struct IAPPlatformPlayStatus status;
                 check_ret(iap_platform_get_play_status(ctx->platform, &status), -IAPAckStatus_ECommandFailed);
                 alloc_response(IAPIPodStateTrackCapsPayload, payload);
-                payload->caps = status.track_caps;
+                payload->caps = swap_32(status.track_caps);
                 return IAPDisplayRemoteCommandID_RetIPodStateInfo;
             } break;
             case IAPIPodStateType_PlaybackEngineContents: {
@@ -428,7 +428,7 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
                 struct IAPPlatformTrackInfo info = {.total_ms = &length, .caps = &caps};
                 check_ret(iap_platform_get_indexed_track_info(ctx->platform, swap_32(request_payload->track_index), &info), -IAPAckStatus_ECommandFailed);
                 alloc_response(IAPRetIndexedPlayingTrackInfoTrackCapsInfoPayload, payload);
-                payload->track_caps     = caps;
+                payload->track_caps     = swap_32(caps);
                 payload->track_total_ms = swap_32(length);
                 payload->chapter_count  = 0;
                 return IAPDisplayRemoteCommandID_RetIndexedPlayingTrackInfo;
@@ -520,7 +520,7 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
                 struct IAPPlatformTrackInfo info = {.total_ms = &length, .caps = &caps};
                 check_ret(iap_platform_get_indexed_track_info(ctx->platform, swap_32(request_payload->track_index), &info), -IAPAckStatus_ECommandFailed);
                 alloc_response(IAPExtendedRetIndexedPlayingTrackInfoTrackCapsInfoPayload, payload);
-                payload->track_caps     = caps;
+                payload->track_caps     = swap_32(caps);
                 payload->track_total_ms = swap_32(length);
                 payload->chapter_count  = 0;
                 return IAPExtendedInterfaceCommandID_ReturnIndexedPlayingTrackInfo;
