@@ -14,6 +14,8 @@ struct IAPArtworkFormat {
     uint16_t image_height;
 } __attribute__((packed));
 
+/*
 struct IAPRetArtworkFormatsPayload {
     struct IAPArtworkFormat formats[];
 } __attribute__((packed));
+*/

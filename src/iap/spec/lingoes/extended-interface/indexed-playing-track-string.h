@@ -9,9 +9,11 @@ struct IAPGetIndexedPlayingTrackStringPayload {
 /* IAPGetIndexedPlayingTrackArtistNamePayload = IAPGetIndexedPlayingTrackStringPayload */
 /* IAPGetIndexedPlayingTrackAlbumNamePayload = IAPGetIndexedPlayingTrackStringPayload */
 
+/*
 struct IAPReturnIndexedPlayingTrackStringPayload {
     char string[];
 } __attribute__((packed));
+*/
 
 /* IAPReturnIndexedPlayingTrackTitlePayload = IAPReturnIndexedPlayingTrackStringPayload */
 /* IAPReturnIndexedPlayingTrackArtistNamePayload = IAPReturnIndexedPlayingTrackStringPayload */

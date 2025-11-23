@@ -534,11 +534,11 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
             }
         } break;
         case IAPDisplayRemoteCommandID_GetArtworkFormats: {
-            alloc_response_extra(IAPRetArtworkFormatsPayload, payload, sizeof(struct IAPArtworkFormat));
-            payload->formats[0].format_id    = 0;
-            payload->formats[0].pixel_format = IAP_COLOR_ARTWORK ? IAPArtworkPixelFormats_RGB565LE : IAPArtworkPixelFormats_Mono;
-            payload->formats[0].image_width  = swap_16(IAP_ARTWORK_WIDTH);
-            payload->formats[0].image_height = swap_16(IAP_ARTWORK_HEIGHT);
+            alloc_response_extra(IAPArtworkFormat, payload, sizeof(struct IAPArtworkFormat));
+            payload->format_id    = 0;
+            payload->pixel_format = IAP_COLOR_ARTWORK ? IAPArtworkPixelFormats_RGB565LE : IAPArtworkPixelFormats_Mono;
+            payload->image_width  = swap_16(IAP_ARTWORK_WIDTH);
+            payload->image_height = swap_16(IAP_ARTWORK_HEIGHT);
             return IAPDisplayRemoteCommandID_RetArtworkFormats;
         } break;
         case IAPDisplayRemoteCommandID_GetTrackArtworkData: {
@@ -569,9 +569,10 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
             const uint16_t count = swap_16(request_payload->artwork_count);
             check_ret(count == 0 || count == 1, -IAPAckStatus_ECommandFailed, "not implemented");
 
-            alloc_response_extra(IAPRetTrackArtworkTimesPayload, payload, sizeof(uint32_t) * count);
+            uint32_t* payload = iap_span_alloc(response, sizeof(uint32_t) * count);
+            check_ret(payload != NULL, iap_false);
             for(uint16_t i = 0; i < count; i += 1) {
-                payload->offsets_ms[i] = 0;
+                payload[i] = 0;
             }
             return IAPDisplayRemoteCommandID_RetTrackArtworkTimes;
         } break;
@@ -691,7 +692,6 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
         case IAPExtendedInterfaceCommandID_GetIndexedPlayingTrackTitle: {
             const struct IAPGetIndexedPlayingTrackStringPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
-            alloc_response(IAPReturnIndexedPlayingTrackStringPayload, payload);
             struct IAPPlatformTrackInfo info = {.title = response};
             check_ret(iap_platform_get_indexed_track_info(ctx->platform, swap_32(request_payload->index), &info), -IAPAckStatus_ECommandFailed);
             return IAPExtendedInterfaceCommandID_ReturnIndexedPlayingTrackTitle;
@@ -699,7 +699,6 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
         case IAPExtendedInterfaceCommandID_GetIndexedPlayingTrackArtistName: {
             const struct IAPGetIndexedPlayingTrackStringPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
-            alloc_response(IAPReturnIndexedPlayingTrackStringPayload, payload);
             struct IAPPlatformTrackInfo info = {.artist = response};
             check_ret(iap_platform_get_indexed_track_info(ctx->platform, swap_32(request_payload->index), &info), -IAPAckStatus_ECommandFailed);
             return IAPExtendedInterfaceCommandID_ReturnIndexedPlayingTrackArtistName;
@@ -707,7 +706,6 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
         case IAPExtendedInterfaceCommandID_GetIndexedPlayingTrackAlbumName: {
             const struct IAPGetIndexedPlayingTrackStringPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
-            alloc_response(IAPReturnIndexedPlayingTrackStringPayload, payload);
             struct IAPPlatformTrackInfo info = {.album = response};
             check_ret(iap_platform_get_indexed_track_info(ctx->platform, swap_32(request_payload->index), &info), -IAPAckStatus_ECommandFailed);
             return IAPExtendedInterfaceCommandID_ReturnIndexedPlayingTrackAlbumName;
@@ -822,8 +820,6 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
             return 0;
         } break;
         case IAPDigitalAudioCommandID_RetAccessorySampleRateCaps: {
-            const struct IAPRetAccessorySampleRateCapsPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
-            check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
             print("accessory supported sample rates:");
             while(request->size > 0) {
                 uint32_t sample_rate;

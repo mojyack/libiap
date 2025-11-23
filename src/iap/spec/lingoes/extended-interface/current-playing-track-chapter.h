@@ -23,6 +23,8 @@ struct IAPGetCurrentPlayingTrackChapterNamePayload {
     uint32_t index;
 } __attribute__((packed));
 
+/*
 struct IAPReturnCurrentPlayingTrackChapterNamePayload {
     char name[];
 } __attribute__((packed));
+*/

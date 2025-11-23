@@ -8,6 +8,8 @@ struct IAPGetTrackArtworkTimesPayload {
     uint16_t artwork_count;
 } __attribute__((packed));
 
+/*
 struct IAPRetTrackArtworkTimesPayload {
     uint32_t offsets_ms[];
 } __attribute__((packed));
+*/
