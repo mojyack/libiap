@@ -2,7 +2,6 @@
 #include "endian.h"
 #include "iap.h"
 #include "macros.h"
-#include "platform-macros.h"
 #include "spec/iap.h"
 
 void iap_notify_track_time_position(struct IAPContext* ctx, uint32_t pos_ms) {

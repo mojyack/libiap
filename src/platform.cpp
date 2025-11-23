@@ -2,9 +2,9 @@
 
 #include "artwork.hpp"
 #include "context.hpp"
-#include "iap/platform-macros.h"
 #include "iap/platform.h"
 #include "macros/assert.hpp"
+#include "platform-macros.h"
 #include "platform.hpp"
 #include "util/hexdump.hpp"
 
