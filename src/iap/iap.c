@@ -9,6 +9,7 @@
 #include "platform.h"
 #include "span.h"
 #include "spec/iap.h"
+#include "unaligned.h"
 
 IAPBool iap_init_ctx(struct IAPContext* ctx) {
     ctx->hid_recv_buf = iap_platform_malloc(ctx->platform, HID_BUFFER_SIZE, 0);
@@ -986,8 +987,6 @@ struct IAPSpan _iap_get_buffer_for_send_payload(struct IAPContext* ctx) {
     struct IAPSpan buf = {ctx->send_buf + header_size, SEND_BUFFER_SIZE - header_size - footer_size};
     return buf;
 }
-
-typedef __attribute__((aligned(1))) uint16_t uu16;
 
 IAPBool _iap_send_packet(struct IAPContext* ctx, uint8_t lingo, uint16_t command, int32_t trans_id, uint8_t* final_ptr) {
     uint8_t* ptr          = _iap_get_buffer_for_send_payload(ctx).ptr;
