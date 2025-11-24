@@ -1,8 +1,8 @@
 #pragma once
 #include "../platform-macros.h"
 
-#define print(fmt, ...) IAP_LOGF("%s:%d: " fmt, __FILE__, __LINE__ __VA_OPT__(, __VA_ARGS__));
-#define warn(fmt, ...)  IAP_ERRORF("%s:%d: " fmt, __FILE__, __LINE__ __VA_OPT__(, __VA_ARGS__));
+#define print(fmt, ...) IAP_LOGF("%s:%d: " fmt, __func__, __LINE__ __VA_OPT__(, __VA_ARGS__));
+#define warn(fmt, ...)  IAP_ERRORF("%s:%d: " fmt, __func__, __LINE__ __VA_OPT__(, __VA_ARGS__));
 
 #define check_act(cond, act, ...)      \
     if(!(cond)) {                      \

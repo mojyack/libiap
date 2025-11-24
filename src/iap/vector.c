@@ -11,7 +11,7 @@ struct IAPVector _iap_construct_vector(void) {
 
 static IAPBool realloc(struct IAPVector* vec, size_t new_capacity, void* platform) {
     uint8_t* old_ptr = vec->ptr;
-    uint8_t* new_ptr = iap_platform_malloc(platform, new_capacity);
+    uint8_t* new_ptr = iap_platform_malloc(platform, new_capacity, 0);
     check_ret(new_ptr != NULL, iap_false);
     vec->ptr = new_ptr;
     if(old_ptr != NULL) {

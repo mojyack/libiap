@@ -39,9 +39,9 @@ struct IAPContext {
     struct _IAPNotifyState notification_data;
     uint8_t                notification_tick;
     /* _iap_send_hid_reports */
-    uint8_t hid_send_staging_buf[0x3F /* max hid report size */ + 1 /* report id */] __attribute__((aligned(32)));
-    IAPBool send_busy;
-    IAPBool flushing_notifications;
+    uint8_t* hid_send_staging_buf;
+    IAPBool  send_busy;
+    IAPBool  flushing_notifications;
 
     uint8_t phase; /* IAPPhase */
 };

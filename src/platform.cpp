@@ -9,8 +9,9 @@
 #include "util/hexdump.hpp"
 
 extern "C" {
-void* iap_platform_malloc(void* platform, size_t size) {
+void* iap_platform_malloc(void* platform, size_t size, int flags) {
     (void)platform;
+    (void)flags;
     return malloc(size);
 }
 

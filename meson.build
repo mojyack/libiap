@@ -41,3 +41,10 @@ executable(
     dependencies: deps,
     install: true,
 )
+
+executable(
+    'simulator',
+    files(
+        'src/simulator.cpp',
+    ),
+)

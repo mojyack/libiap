@@ -11,10 +11,10 @@
 #include "spec/iap.h"
 
 IAPBool iap_init_ctx(struct IAPContext* ctx) {
-    ctx->hid_recv_buf = iap_platform_malloc(ctx->platform, HID_BUFFER_SIZE);
+    ctx->hid_recv_buf = iap_platform_malloc(ctx->platform, HID_BUFFER_SIZE, 0);
     check_ret(ctx->hid_recv_buf != NULL, iap_false);
     ctx->hid_recv_buf_cursor = 0;
-    ctx->send_buf            = iap_platform_malloc(ctx->platform, SEND_BUFFER_SIZE);
+    ctx->send_buf            = iap_platform_malloc(ctx->platform, SEND_BUFFER_SIZE, 0);
     check_ret(ctx->send_buf != NULL, iap_false);
     ctx->send_buf_sending_cursor      = 0;
     ctx->send_buf_sending_range_begin = 0;
@@ -27,9 +27,13 @@ IAPBool iap_init_ctx(struct IAPContext* ctx) {
     ctx->enabled_notifications        = 0;
     ctx->notifications                = 0;
     ctx->notification_tick            = 0;
-    ctx->send_busy                    = iap_false;
-    ctx->flushing_notifications       = iap_false;
-    ctx->phase                        = IAPPhase_Connected;
+    ctx->hid_send_staging_buf         = iap_platform_malloc(ctx->platform,
+                                                            0x3F /* max hid report size */ + 1 /* report id */,
+                                                            IAPPlatformMallocFlags_Uncached);
+    check_ret(ctx->hid_send_staging_buf != NULL, iap_false);
+    ctx->send_busy              = iap_false;
+    ctx->flushing_notifications = iap_false;
+    ctx->phase                  = IAPPhase_Connected;
     return iap_true;
 }
 
@@ -37,6 +41,7 @@ IAPBool iap_deinit_ctx(struct IAPContext* ctx) {
     if(ctx->artwork_handle != 0) {
         iap_platform_close_artwork(ctx->platform, ctx->artwork_handle);
     }
+    iap_platform_free(ctx->platform, ctx->hid_send_staging_buf);
     iap_platform_free(ctx->platform, ctx->hid_recv_buf);
     iap_platform_free(ctx->platform, ctx->send_buf);
     return iap_true;
