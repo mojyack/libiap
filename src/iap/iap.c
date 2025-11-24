@@ -982,6 +982,8 @@ struct IAPSpan _iap_get_buffer_for_send_payload(struct IAPContext* ctx) {
     return buf;
 }
 
+typedef __attribute__((aligned(1))) uint16_t uu16;
+
 IAPBool _iap_send_packet(struct IAPContext* ctx, uint8_t lingo, uint16_t command, int32_t trans_id, uint8_t* final_ptr) {
     uint8_t* ptr          = _iap_get_buffer_for_send_payload(ctx).ptr;
     size_t   payload_size = final_ptr - ptr;
@@ -991,7 +993,7 @@ IAPBool _iap_send_packet(struct IAPContext* ctx, uint8_t lingo, uint16_t command
     *(uint8_t*)ptr = val;
 #define pack_16(val) \
     ptr -= 2;        \
-    *(uint16_t*)ptr = swap_16(val);
+    *(uu16*)ptr = swap_16(val);
 
     /* fill header in reverse order */
     /* trans id */
