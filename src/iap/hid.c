@@ -63,7 +63,7 @@ IAPBool iap_feed_hid_report(struct IAPContext* ctx, const uint8_t* const data, c
         ctx->hid_recv_buf_cursor = 0;
         check_ret(ret, iap_false);
     }
-    return iap_false;
+    return iap_true;
 }
 
 IAPBool iap_notify_send_complete(struct IAPContext* ctx) {
