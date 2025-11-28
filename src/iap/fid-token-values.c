@@ -3,7 +3,9 @@
 #include "macros.h"
 #include "span.h"
 #include "spec/iap.h"
-#include "vector.h"
+
+#undef print
+#define print(...)
 
 #define pack_accepted(Ack)                                          \
     struct Ack* const ack = iap_span_alloc(response, sizeof(*ack)); \
@@ -30,18 +32,18 @@ int _iap_hanlde_set_fid_token_values(struct IAPSpan* request, struct IAPSpan* re
         switch(token_header->type << 8 | token_header->subtype) {
         case IAPFIDTokenTypes_Identify: {
             /* IAPFIDTokenValuesIdentifyToken contains vla, need to parse manually */
-            iap_span_read(&token_span, sizeof(struct IAPFIDTokenValuesToken));
-            uint8_t num_lingoes;
-            check_ret(iap_span_read_8(&token_span, &num_lingoes), -IAPAckStatus_EBadParameter);
-            print("accessory supported lingoes(%u):", num_lingoes);
-            for(int i = 0; i < num_lingoes; i += 1) {
+            const struct IAPFIDTokenValuesIdentifyTokenHead* token_head = iap_span_read(&token_span, sizeof(*token_head));
+            check_ret(token_head != NULL, -IAPAckStatus_EBadParameter);
+            print("accessory supported lingoes(%u):", token_head->num_lingoes);
+            for(int i = 0; i < token_head->num_lingoes; i += 1) {
                 uint8_t lingo_id;
                 check_ret(iap_span_read_8(&token_span, &lingo_id), -IAPAckStatus_EBadParameter);
                 IAP_LOGF("  %s(%u)", _iap_lingo_str(lingo_id), lingo_id);
             }
-            uint32_t opt, id;
-            check_ret(iap_span_read_32(&token_span, &opt), -IAPAckStatus_EBadParameter);
-            check_ret(iap_span_read_32(&token_span, &id), -IAPAckStatus_EBadParameter);
+            const struct IAPFIDTokenValuesIdentifyTokenTail* token_tail = iap_span_read(&token_span, sizeof(*token_tail));
+            check_ret(token_tail != NULL, -IAPAckStatus_EBadParameter);
+            const uint32_t opt = swap_32(token_tail->device_option);
+            const uint32_t id  = swap_32(token_tail->device_id);
             print("options=%04X device_id=%04X", opt, id);
             pack_accepted(IAPFIDTokenValuesIdentifyAck);
             if(opt != IAPIdentifyDeviceLingoesOptions_ImmediateAuth) {
