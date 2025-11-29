@@ -43,8 +43,15 @@ executable(
 )
 
 executable(
-    'simulator',
+    'emulator',
     files(
-        'src/simulator.cpp',
+        'src/emu/hid.cpp',
+        'src/emu/iap.cpp',
+        'src/emu/main.cpp',
+        'src/emu/pw.cpp',
     ),
+    dependencies: [
+        dependency('libspa-0.2'),
+        dependency('libpipewire-0.3'),
+    ],
 )
