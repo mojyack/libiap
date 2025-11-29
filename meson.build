@@ -43,8 +43,9 @@ executable(
 )
 
 executable(
-    'simulator',
+    'emulator',
     files(
-        'src/simulator.cpp',
+        'src/emu/main.cpp',
+        'src/emu/hid.cpp',
     ),
 )
