@@ -30,7 +30,7 @@ static struct ReportSize input_report_size_table[] = {
 };
 
 static int find_output_report_size(uint8_t id) {
-    for(size_t i = 0; i < array_size(input_report_size_table); i += 1) {
+    for(size_t i = 0; i < array_size(output_report_size_table); i += 1) {
         if(output_report_size_table[i].id == id) {
             return output_report_size_table[i].size;
         }
