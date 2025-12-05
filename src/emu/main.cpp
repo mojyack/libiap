@@ -18,6 +18,7 @@
 #include "util/charconv.hpp"
 #include "util/concat.hpp"
 #include "util/coroutine.hpp"
+#include "util/critical.hpp"
 #include "util/hexdump.hpp"
 #include "util/split.hpp"
 
@@ -290,7 +291,7 @@ auto pw_thread = std::thread();
 
 auto start_audio(const uint32_t sample_rate) -> bool {
     ensure(pw_ctx == nullptr);
-    pw_ctx = pw::init(sample_rate, 444100);
+    pw_ctx = pw::init(sample_rate, 44100);
     ensure(pw_ctx != nullptr);
     pw_thread = std::thread(pw::run, pw_ctx);
     return true;
@@ -336,32 +337,74 @@ auto handle_frame(ParsedIAPFrame frame) -> bool {
 } // namespace
 
 namespace pw {
-auto pcm_buf = std::vector<int16_t>();
-auto on_capture(const int16_t* buffer, const size_t num_samples, const size_t num_channels) -> void {
-    // PRINT("got {} samples", num_samples);
-    pcm_buf = concat<int16_t>(pcm_buf, std::span(buffer, num_samples * num_channels));
+auto prebuffering = true;
+auto critical_pcm_buf = Critical<std::vector<int16_t>>();
+
+auto total_capture_attempt = 0;
+auto total_captured        = 0;
+auto total_played          = 0;
+auto epoch                 = std::chrono::system_clock::now();
+
+auto tick() -> bool {
+    static auto time = std::chrono::system_clock::now();
+    const auto  now  = std::chrono::system_clock::now();
+    if(now - time >= std::chrono::seconds(1)) {
+        time = now;
+        return true;
+    } else {
+        return false;
+    }
+}
+
+constexpr auto buffer_min = 44100;
+constexpr auto buffer_max = 44100 * 2;
+
+auto on_capture(const int16_t* buffer, const size_t num_samples, const size_t /*num_channels*/) -> void {
+    auto [lock, pcm_buf] = critical_pcm_buf.access();
+    if(pcm_buf.size() > buffer_max) {
+        PRINT("overflow {}", pcm_buf.size());
+        return;
+    }
+
+    pcm_buf = concat<int16_t>(pcm_buf, std::span(buffer, num_samples));
+
+    total_captured += num_samples;
+
+    if(tick()) {
+        PRINT("stat: captured={} played={} remain={}", total_captured, total_played, pcm_buf.size());
+        total_played   = 0;
+        total_captured = 0;
+    }
 }
 
 auto on_playback(int16_t* const buffer, const size_t num_samples) -> size_t {
-    if(pcm_buf.empty()) {
+    auto [lock, pcm_buf] = critical_pcm_buf.access();
+
+    if(prebuffering && pcm_buf.size() <= buffer_min) {
+        return 0;
+    } else if(pcm_buf.empty()) {
+        prebuffering = true;
         return 0;
     }
+    prebuffering = false;
 
     const auto copy = std::min(pcm_buf.size(), num_samples);
     std::memcpy(buffer, pcm_buf.data(), copy * sizeof(int16_t));
     pcm_buf.erase(pcm_buf.begin(), pcm_buf.begin() + copy);
-    PRINT("requested {}, copyied {}", num_samples, copy);
+    total_played += copy;
     return copy;
 }
 } // namespace pw
 
 auto main(const int argc, const char* const* argv) -> int {
-    auto hiddev = (const char*)(nullptr);
-    auto authed = false;
+    auto hiddev   = (const char*)(nullptr);
+    auto authed   = false;
+    auto no_audio = false;
     {
         auto parser = args::Parser<>();
         parser.arg(&hiddev, "PATH", "path to hid device");
         parser.kwflag(&authed, {"-a"}, "assume authed");
+        parser.kwflag(&no_audio, {"-n"}, "disable audio streaming");
         ensure(parser.parse(argc, argv));
     }
     iap_fd = open(hiddev, O_RDWR);
@@ -378,7 +421,7 @@ auto main(const int argc, const char* const* argv) -> int {
 
     if(!authed) {
         auth_task.resume();
-    } else {
+    } else if(!no_audio) {
         ensure(start_audio(44100));
     }
 

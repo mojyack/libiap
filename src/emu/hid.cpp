@@ -16,7 +16,7 @@ const auto output_report_size_table = std::array{
     ReportSize{.id = 0x06, .size = 0x0A},
     ReportSize{.id = 0x07, .size = 0x0E},
     ReportSize{.id = 0x08, .size = 0x14},
-    //ReportSize{.id = 0x09, .size = 0x3F}, /* TODO: fixed */
+    ReportSize{.id = 0x09, .size = 0x3F},
 };
 
 /* sorted by size */
