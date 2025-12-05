@@ -22,7 +22,7 @@ struct Context {
 };
 
 namespace {
-constexpr auto playback_channels = 1;
+constexpr auto playback_channels = 2;
 
 auto capture_on_process(void* const userdata) -> void {
     auto& context = *std::bit_cast<Context*>(userdata);
@@ -56,7 +56,7 @@ auto capture_on_stream_param_changed(void* const userdata, const uint32_t id, co
         return;
     }
 
-    ensure(spa_format_audio_raw_parse(param, &context.capture_format.info.raw) == 0);
+    ensure(spa_format_audio_raw_parse(param, &context.capture_format.info.raw) >= 0);
 }
 
 auto playback_on_process(void* const userdata) -> void {
@@ -70,17 +70,19 @@ auto playback_on_process(void* const userdata) -> void {
     const auto samples = std::bit_cast<int16_t*>(buffer->datas[0].data);
     ensure(samples != NULL);
 
-    auto num_samples = buffer->datas[0].maxsize / sizeof(int16_t);
+    constexpr auto stride = sizeof(int16_t) * playback_channels;
+
+    auto num_frames = buffer->datas[0].maxsize / stride;
     if(pw_buffer->requested != 0) {
-        num_samples = std::min(pw_buffer->requested * playback_channels, num_samples);
+        num_frames = std::min(pw_buffer->requested, num_frames);
     }
 
-    const auto copied = on_playback(samples, num_samples);
+    const auto copied = on_playback(samples, num_frames * playback_channels);
 
     const auto chunk = buffer->datas[0].chunk;
     chunk->offset    = 0;
-    chunk->stride    = sizeof(int16_t) * playback_channels;
-    chunk->size      = copied * chunk->stride;
+    chunk->stride    = stride;
+    chunk->size      = copied * sizeof(int16_t);
 }
 
 const auto capture_stream_events = pw_stream_events{
@@ -135,6 +137,7 @@ auto init(const size_t capture_rate, const size_t playback_rate) -> Context* {
             PW_KEY_MEDIA_TYPE, "Audio",
             PW_KEY_MEDIA_CATEGORY, "Capture",
             PW_KEY_MEDIA_ROLE, "Music",
+            PW_KEY_NODE_NICK, "Rockbox media player",
             NULL)),
         "audio-capture",
         capture_stream_events,
