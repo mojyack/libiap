@@ -1,8 +1,8 @@
 #include <iostream>
 #include <optional>
-#include <thread>
 #include <vector>
 
+#include <alsa/asoundlib.h>
 #include <fcntl.h>
 #include <poll.h>
 #include <stdio.h>
@@ -11,6 +11,8 @@
 #include "cast.hpp"
 #include "endian.hpp"
 #include "iap.hpp"
+#include "macros/assert.hpp"
+#include "macros/autoptr.hpp"
 #include "macros/unwrap.hpp"
 #include "pw.hpp"
 #include "spec/iap.h"
@@ -27,6 +29,8 @@ auto parse_hid_report(BytesArray& buf, BytesRef ref) -> bool;
 auto encode_to_hid_reports(BytesRef ref) -> std::vector<BytesArray>;
 
 namespace {
+declare_autoptr(SndPCM, snd_pcm_t, snd_pcm_close);
+
 auto to_bytes(std::string_view str) -> std::optional<std::vector<std::byte>> {
     auto ret = std::vector<std::byte>();
     for(const auto e : split(str, " ")) {
@@ -286,14 +290,34 @@ auto auth_task_main(const ParsedIAPFrame& frame) -> CoGenerator<bool> {
     co_return true;
 }
 
-auto pw_ctx    = (pw::Context*)(nullptr);
-auto pw_thread = std::thread();
+auto pfds = std::vector{
+    pollfd{.fd = fileno(stdin), .events = POLLIN},
+    pollfd{.fd = 0 /*iap_fd*/, .events = POLLIN},
+};
+constexpr auto pfds_static_elms = 2;
+
+auto snd    = AutoSndPCM();
+auto pw_ctx = (pw::Context*)(nullptr);
 
 auto start_audio(const uint32_t sample_rate) -> bool {
-    ensure(pw_ctx == nullptr);
-    pw_ctx = pw::init(sample_rate, 44100);
+    PRINT("starting audio samplr={}", sample_rate);
+    /* capture */
+    snd.reset();
+    ensure(snd_pcm_open(std::inout_ptr(snd), "hw:3,0", SND_PCM_STREAM_CAPTURE, SND_PCM_NONBLOCK) == 0, "{}({})", errno, strerror(errno));
+    ensure(snd_pcm_set_params(snd.get(), SND_PCM_FORMAT_S16_LE, SND_PCM_ACCESS_RW_INTERLEAVED, 2, sample_rate, 0, 500000) == 0);
+    ensure(snd_pcm_prepare(snd.get()) == 0);
+    const auto pcm_pfds_count = snd_pcm_poll_descriptors_count(snd.get());
+    pfds.resize(pfds_static_elms + pcm_pfds_count);
+    snd_pcm_poll_descriptors(snd.get(), &pfds[pfds_static_elms], pfds.size() - pfds_static_elms);
+    ensure(snd_pcm_start(snd.get()) == 0);
+
+    /* playback */
+    if(pw_ctx != nullptr) {
+        pw::finish(pw_ctx);
+    }
+    pw_ctx = pw::init(0, sample_rate);
     ensure(pw_ctx != nullptr);
-    pw_thread = std::thread(pw::run, pw_ctx);
+    pw::run(pw_ctx);
     return true;
 }
 
@@ -336,14 +360,14 @@ auto handle_frame(ParsedIAPFrame frame) -> bool {
 }
 } // namespace
 
-namespace pw {
-auto prebuffering = true;
+auto prebuffering     = true;
 auto critical_pcm_buf = Critical<std::vector<int16_t>>();
+auto total_captured   = 0;
+auto total_played     = 0;
+auto epoch            = std::chrono::system_clock::now();
 
-auto total_capture_attempt = 0;
-auto total_captured        = 0;
-auto total_played          = 0;
-auto epoch                 = std::chrono::system_clock::now();
+constexpr auto buffer_min = 44100;
+constexpr auto buffer_max = 44100 * 2;
 
 auto tick() -> bool {
     static auto time = std::chrono::system_clock::now();
@@ -356,25 +380,8 @@ auto tick() -> bool {
     }
 }
 
-constexpr auto buffer_min = 44100;
-constexpr auto buffer_max = 44100 * 2;
-
-auto on_capture(const int16_t* buffer, const size_t num_samples, const size_t /*num_channels*/) -> void {
-    auto [lock, pcm_buf] = critical_pcm_buf.access();
-    if(pcm_buf.size() > buffer_max) {
-        PRINT("overflow {}", pcm_buf.size());
-        return;
-    }
-
-    pcm_buf = concat<int16_t>(pcm_buf, std::span(buffer, num_samples));
-
-    total_captured += num_samples;
-
-    if(tick()) {
-        PRINT("stat: captured={} played={} remain={}", total_captured, total_played, pcm_buf.size());
-        total_played   = 0;
-        total_captured = 0;
-    }
+namespace pw {
+auto on_capture(const int16_t*, const size_t, const size_t) -> void {
 }
 
 auto on_playback(int16_t* const buffer, const size_t num_samples) -> size_t {
@@ -391,7 +398,7 @@ auto on_playback(int16_t* const buffer, const size_t num_samples) -> size_t {
     const auto copy = std::min(pcm_buf.size(), num_samples);
     std::memcpy(buffer, pcm_buf.data(), copy * sizeof(int16_t));
     pcm_buf.erase(pcm_buf.begin(), pcm_buf.begin() + copy);
-    total_played += copy;
+    total_played += copy / 2;
     return copy;
 }
 } // namespace pw
@@ -410,10 +417,7 @@ auto main(const int argc, const char* const* argv) -> int {
     iap_fd = open(hiddev, O_RDWR);
     ensure(iap_fd >= 0);
 
-    auto pfds = std::array{
-        pollfd{.fd = fileno(stdin), .events = POLLIN},
-        pollfd{.fd = iap_fd, .events = POLLIN},
-    };
+    pfds[1].fd = iap_fd;
 
     auto hid_buf   = BytesArray();
     auto iap_frame = ParsedIAPFrame();
@@ -429,11 +433,23 @@ loop:
     const auto ret = poll(pfds.data(), pfds.size(), -1);
     ensure(ret > 0);
     if(pfds[0].revents & POLLIN) {
+#define error_act goto loop
         auto line = std::string();
         std::getline(std::cin, line);
-        if(auto a = to_bytes(line)) {
-            PRINT("wrote {} bytes ({})", write(iap_fd, a->data(), a->size()), strerror(errno));
+        if(line.empty()) {
+            goto loop;
         }
+        const auto elms = split(line, " ");
+        if(elms[0] == "raw") {
+            ensure_a(elms.size() == 2);
+            unwrap_a(bin, to_bytes(elms[1]));
+            PRINT("wrote {} bytes ({})", write(iap_fd, bin.data(), bin.size()), strerror(errno));
+        } else if(elms[0] == "sampr") {
+            ensure_a(elms.size() == 2);
+            unwrap_a(sampr, from_chars<uint32_t>(elms[1]));
+            ensure_a(start_audio(sampr));
+        }
+#undef error_act
     }
     if(pfds[1].revents & POLLIN) {
         auto buf = std::array<std::byte, 1024>();
@@ -455,6 +471,41 @@ loop:
             hid_buf.clear();
         }
     }
+
+    if(pfds.size() <= pfds_static_elms) {
+        goto loop;
+    }
+
+    auto revents = (unsigned short)(0);
+    ensure(snd_pcm_poll_descriptors_revents(snd.get(), &pfds[pfds_static_elms], pfds.size() - pfds_static_elms, &revents) == 0);
+    if(revents & POLLIN) {
+        const auto frames = snd_pcm_avail(snd.get());
+        ensure(frames > 0);
+        auto [lock, pcm_buf] = critical_pcm_buf.access();
+        if(pcm_buf.size() + frames * 2 > buffer_max) {
+            PRINT("overflow");
+            pcm_buf.resize(std::min<int>(buffer_max - frames * 2, 0));
+        }
+        const auto prev_size = pcm_buf.size();
+        pcm_buf.resize(prev_size + frames * 2);
+        const auto ret = snd_pcm_readi(snd.get(), &pcm_buf[prev_size], frames);
+        if(ret > 0) {
+            total_captured += ret;
+        } else if(ret == -EPIPE) {
+            ensure(snd_pcm_prepare(snd.get()) == 0);
+        } else {
+            bail("alsa error {}({})", ret, strerror(-ret));
+        }
+    } else if(revents & POLLERR) {
+        return -1;
+    }
+
+    if(tick()) {
+        PRINT("stat: captured={} played={} remain={}", total_captured, total_played, critical_pcm_buf.unsafe_access().size());
+        total_played   = 0;
+        total_captured = 0;
+    }
+
     goto loop;
 
     return 0;

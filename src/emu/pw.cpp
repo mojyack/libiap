@@ -9,16 +9,16 @@
 
 namespace pw {
 namespace {
-declare_autoptr(PWMainLoop, pw_main_loop, pw_main_loop_destroy);
+declare_autoptr(PWThreadLoop, pw_thread_loop, pw_thread_loop_destroy);
 declare_autoptr(PWStream, pw_stream, pw_stream_destroy);
 declare_autoptr(PWProperties, pw_properties, pw_properties_clear);
 } // namespace
 
 struct Context {
-    AutoPWMainLoop main_loop;
-    AutoPWStream   capture_stream;
-    AutoPWStream   playback_stream;
-    spa_audio_info capture_format;
+    AutoPWThreadLoop thread_loop;
+    AutoPWStream     capture_stream;
+    AutoPWStream     playback_stream;
+    spa_audio_info   capture_format;
 };
 
 namespace {
@@ -102,9 +102,9 @@ auto init(const size_t capture_rate, const size_t playback_rate) -> Context* {
 
     auto context = std::unique_ptr<Context>(new Context());
 
-    context->main_loop.reset(pw_main_loop_new(NULL));
-    ensure(context->main_loop.get() != NULL);
-    const auto loop = pw_main_loop_get_loop(context->main_loop.get());
+    context->thread_loop.reset(pw_thread_loop_new("pw", NULL));
+    ensure(context->thread_loop.get() != NULL);
+    const auto loop = pw_thread_loop_get_loop(context->thread_loop.get());
 
     const auto setup_stream = [loop, context = context.get()](const AutoPWProperties props, const char* const name, const pw_stream_events& events, const spa_audio_info_raw format, const spa_direction direction) -> AutoPWStream {
         constexpr auto error_value = nullptr;
@@ -132,39 +132,48 @@ auto init(const size_t capture_rate, const size_t playback_rate) -> Context* {
         return stream;
     };
 
-    context->capture_stream = setup_stream(
-        AutoPWProperties(pw_properties_new(
-            PW_KEY_MEDIA_TYPE, "Audio",
-            PW_KEY_MEDIA_CATEGORY, "Capture",
-            PW_KEY_MEDIA_ROLE, "Music",
-            PW_KEY_NODE_NICK, "Rockbox media player",
-            NULL)),
-        "audio-capture",
-        capture_stream_events,
-        {.format = SPA_AUDIO_FORMAT_S16, .rate = uint32_t(capture_rate)},
-        SPA_DIRECTION_INPUT);
-    ensure(context->capture_stream.get() != NULL);
+    if(capture_rate > 0) {
+        context->capture_stream = setup_stream(
+            AutoPWProperties(pw_properties_new(
+                PW_KEY_MEDIA_TYPE, "Audio",
+                PW_KEY_MEDIA_CATEGORY, "Capture",
+                PW_KEY_MEDIA_ROLE, "Music",
+                PW_KEY_NODE_NICK, "Rockbox media player",
+                NULL)),
+            "audio-capture",
+            capture_stream_events,
+            {.format = SPA_AUDIO_FORMAT_S16, .rate = uint32_t(capture_rate)},
+            SPA_DIRECTION_INPUT);
+        ensure(context->capture_stream.get() != NULL);
+    }
 
-    context->playback_stream = setup_stream(
-        AutoPWProperties(pw_properties_new(
-            PW_KEY_MEDIA_TYPE, "Audio",
-            PW_KEY_MEDIA_CATEGORY, "Playback",
-            PW_KEY_MEDIA_ROLE, "Music",
-            NULL)),
-        "audio-playback",
-        playback_stream_events,
-        {.format = SPA_AUDIO_FORMAT_S16, .rate = uint32_t(playback_rate), .channels = playback_channels},
-        SPA_DIRECTION_OUTPUT);
-    ensure(context->playback_stream.get() != NULL);
+    if(playback_rate > 0) {
+        context->playback_stream = setup_stream(
+            AutoPWProperties(pw_properties_new(
+                PW_KEY_MEDIA_TYPE, "Audio",
+                PW_KEY_MEDIA_CATEGORY, "Playback",
+                PW_KEY_MEDIA_ROLE, "Music",
+                NULL)),
+            "audio-playback",
+            playback_stream_events,
+            {.format = SPA_AUDIO_FORMAT_S16, .rate = uint32_t(playback_rate), .channels = playback_channels},
+            SPA_DIRECTION_OUTPUT);
+        ensure(context->playback_stream.get() != NULL);
+    }
 
     return context.release();
 }
 
 auto run(Context* const context) -> void {
-    pw_main_loop_run(context->main_loop.get());
+    pw_thread_loop_lock(context->thread_loop.get());
+    pw_thread_loop_start(context->thread_loop.get());
+    pw_thread_loop_unlock(context->thread_loop.get());
 }
 
 auto finish(Context* const context) -> void {
+    pw_thread_loop_stop(context->thread_loop.get());
+    context->capture_stream.reset();
+    context->playback_stream.reset();
     delete context;
     pw_deinit();
 }
