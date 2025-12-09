@@ -327,7 +327,7 @@ auto start_audio(const uint32_t sample_rate) -> bool {
     unwrap(card, find_rockbox_card_index());
     const auto card_name = std::format("hw:{},0", card);
     ensure(snd_pcm_open(std::inout_ptr(snd), card_name.data(), SND_PCM_STREAM_CAPTURE, SND_PCM_NONBLOCK) == 0, "{}({})", errno, strerror(errno));
-    ensure(snd_pcm_set_params(snd.get(), SND_PCM_FORMAT_S16_LE, SND_PCM_ACCESS_RW_INTERLEAVED, 2, sample_rate, 0, 500000) == 0);
+    ensure(snd_pcm_set_params(snd.get(), SND_PCM_FORMAT_S16_LE, SND_PCM_ACCESS_RW_INTERLEAVED, 2, sample_rate, 0, 1'000'000) == 0);
     ensure(snd_pcm_prepare(snd.get()) == 0);
     ensure(snd_pcm_poll_descriptors_count(snd.get()) == 1);
     snd_pcm_poll_descriptors(snd.get(), &pfds[pfds_alsa], 1);
@@ -344,13 +344,55 @@ auto start_audio(const uint32_t sample_rate) -> bool {
 }
 
 auto handle_frame(ParsedIAPFrame frame) -> bool {
-    PRINT("handling {:02X}:{:04X}", frame.lingo, frame.command);
+    PRINT("handling 0x{:02X}:0x{:04X}", frame.lingo, frame.command);
     switch(frame.lingo) {
     case IAPLingoID_ExtendedInterface:
         switch(frame.command) {
         case IAPExtendedInterfaceCommandID_IPodAck: {
             unwrap(ack, (extract_payload<cmd(ExtendedInterface, IPodAck), IAPExtendedIPodAckPayload>(frame)));
             PRINT("extended ack command=0x{:04X} status=0x{:02X}", ack.id, ack.status);
+            return true;
+        } break;
+        case IAPExtendedInterfaceCommandID_ReturnIndexedPlayingTrackInfo: {
+            unwrap(resp, (extract_payload<cmd(ExtendedInterface, ReturnIndexedPlayingTrackInfo), IAPExtendedRetIndexedPlayingTrackInfoPayload>(frame)));
+            switch(resp.type) {
+            case IAPExtendedIndexedPlayingTrackInfoType_TrackReleaseDate: {
+                unwrap(resp, (extract_payload<cmd(ExtendedInterface, ReturnIndexedPlayingTrackInfo), IAPExtendedRetIndexedPlayingTrackInfoTrackReleaseDatePayload>(frame)));
+                PRINT("track release date {}-{}-{} {}:{}.{} week {}", swap(resp.year), resp.month, resp.day, resp.hours, resp.minutes, resp.seconds, resp.weekday);
+                return true;
+            } break;
+            default:
+                bail("unhandled track info type={}", resp.type);
+            }
+        } break;
+        case IAPExtendedInterfaceCommandID_ReturnPlayStatus: {
+            unwrap(resp, (extract_payload<cmd(ExtendedInterface, ReturnPlayStatus), IAPExtendedRetPlayStatusPayload>(frame)));
+            PRINT("play status st={} pos={}/{}", resp.state, swap(resp.track_pos_ms), swap(resp.track_total_ms));
+            return true;
+        } break;
+        case IAPExtendedInterfaceCommandID_ReturnCurrentPlayingTrackIndex: {
+            unwrap(resp, (extract_payload<cmd(ExtendedInterface, ReturnCurrentPlayingTrackIndex), IAPReturnCurrentPlayingTrackIndexPayload>(frame)));
+            PRINT("track index {}", swap(resp.index));
+            return true;
+        } break;
+        case IAPExtendedInterfaceCommandID_ReturnIndexedPlayingTrackTitle: {
+            ensure(char(frame.payload.back()) == '\0');
+            PRINT("track title: {}", std::bit_cast<const char*>(frame.payload.data()));
+            return true;
+        } break;
+        case IAPExtendedInterfaceCommandID_ReturnIndexedPlayingTrackArtistName: {
+            ensure(char(frame.payload.back()) == '\0');
+            PRINT("track artist: {}", std::bit_cast<const char*>(frame.payload.data()));
+            return true;
+        } break;
+        case IAPExtendedInterfaceCommandID_ReturnIndexedPlayingTrackAlbumName: {
+            ensure(char(frame.payload.back()) == '\0');
+            PRINT("track album: {}", std::bit_cast<const char*>(frame.payload.data()));
+            return true;
+        } break;
+        case IAPExtendedInterfaceCommandID_ReturnNumPlayingTracks: {
+            unwrap(resp, (extract_payload<cmd(ExtendedInterface, ReturnNumPlayingTracks), IAPRetNumPlayingTracksPayload>(frame)));
+            PRINT("track count {}", swap(resp.num_playing_tracks));
             return true;
         } break;
         }
@@ -420,6 +462,36 @@ auto handle_stdin(const std::string_view input) -> bool {
         unwrap(act, table.find(elms[1]), "invalid control {}", elms[1]);
         const auto request = IAPPlayControlPayload{act};
         ensure(send_command(cmd(ExtendedInterface, PlayControl), &request, sizeof(request)));
+    } else if(elms[0] == "status") {
+        ensure(send_command(cmd(ExtendedInterface, GetPlayStatus)));
+    } else if(elms[0] == "index") {
+        ensure(send_command(cmd(ExtendedInterface, GetCurrentPlayingTrackIndex)));
+    } else if(elms[0] == "count") {
+        ensure(send_command(cmd(ExtendedInterface, GetNumPlayingTracks)));
+    } else if(elms[0] == "string") { /* string INDEX TYPE */
+        ensure(elms.size() == 3);
+        unwrap(index, from_chars<uint32_t>(elms[1]));
+        static const auto table = make_pair_table<std::string_view, uint8_t>({
+            {"title", IAPExtendedInterfaceCommandID_GetIndexedPlayingTrackTitle},
+            {"album", IAPExtendedInterfaceCommandID_GetIndexedPlayingTrackAlbumName},
+            {"artist", IAPExtendedInterfaceCommandID_GetIndexedPlayingTrackArtistName},
+        });
+        unwrap(command, table.find(elms[2]), "invalid track info {}", elms[2]);
+        const auto request = IAPGetIndexedPlayingTrackStringPayload{.index = swap(index)};
+        ensure(send_command(IAPLingoID_ExtendedInterface, command, &request, sizeof(request)));
+    } else if(elms[0] == "info") { /* info INDEX */
+        ensure(elms.size() == 3);
+        unwrap(index, from_chars<uint32_t>(elms[1]));
+        static const auto table = make_pair_table<std::string_view, uint8_t>({
+            {"release", IAPExtendedIndexedPlayingTrackInfoType_TrackReleaseDate},
+        });
+        unwrap(type, table.find(elms[2]), "invalid track info {}", elms[2]);
+        const auto request = IAPExtendedGetIndexedPlayingTrackInfoPayload{
+            .type          = type,
+            .track_index   = swap(index),
+            .chapter_index = 0,
+        };
+        ensure(send_command(cmd(ExtendedInterface, GetIndexedPlayingTrackInfo), &request, sizeof(request)));
     } else {
         bail("invalid command {}", elms[0]);
     }
@@ -433,8 +505,8 @@ auto total_captured   = 0;
 auto total_played     = 0;
 auto epoch            = std::chrono::system_clock::now();
 
-constexpr auto buffer_min = 44100;
-constexpr auto buffer_max = 44100 * 2;
+constexpr auto buffer_min = 48000;
+constexpr auto buffer_max = 48000 * 2;
 
 auto tick() -> bool {
     static auto time = std::chrono::system_clock::now();
@@ -493,7 +565,7 @@ auto main(const int argc, const char* const* argv) -> int {
     if(!authed) {
         auth_task.resume();
     } else if(!no_audio) {
-        ensure(start_audio(44100));
+        ensure(start_audio(48000));
     }
 
 loop:
@@ -519,7 +591,7 @@ loop:
                     authed = true;
                 }
             } else {
-                ensure(handle_frame(iap_frame));
+                handle_frame(iap_frame);
             }
             hid_buf.clear();
         }
@@ -533,7 +605,11 @@ loop:
     ensure(snd_pcm_poll_descriptors_revents(snd.get(), &pfds[pfds_alsa], 1, &revents) == 0);
     if(revents & POLLIN) {
         const auto frames = snd_pcm_avail(snd.get());
-        ensure(frames > 0);
+        if(frames <= 0) {
+            ensure(snd_pcm_recover(snd.get(), frames, 0) == 0);
+            ensure(snd_pcm_start(snd.get()) == 0);
+            goto loop;
+        }
         auto [lock, pcm_buf] = critical_pcm_buf.access();
         if(pcm_buf.size() + frames * 2 > buffer_max) {
             PRINT("overflow");
@@ -545,7 +621,8 @@ loop:
         if(ret > 0) {
             total_captured += ret;
         } else if(ret == -EPIPE) {
-            ensure(snd_pcm_prepare(snd.get()) == 0);
+            ensure(snd_pcm_recover(snd.get(), frames, 0) == 0);
+            ensure(snd_pcm_start(snd.get()) == 0);
         } else {
             bail("alsa error {}({})", ret, strerror(-ret));
         }
