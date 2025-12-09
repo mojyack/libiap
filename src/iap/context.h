@@ -30,9 +30,10 @@ struct IAPContext {
     /* iap.c */
     uintptr_t artwork_handle;
     size_t    artwork_cursor;
+    uint16_t  trans_id;
     uint16_t  artwork_chunk_index;
     int32_t   artwork_trans_id;
-    uint16_t  trans_id;
+    uint32_t  selected_sampr;
     /* notification.c */
     uint32_t               enabled_notifications;
     uint32_t               notifications;

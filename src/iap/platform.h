@@ -58,10 +58,15 @@ struct IAPPlatformTrackInfo {
     struct IAPSpan*     title;
 };
 
+/* library routines */
 void*   iap_platform_malloc(void* platform, size_t size, int flags);
 void    iap_platform_free(void* platform, void* ptr);
 int     iap_platform_send_hid_report(void* platform, const void* ptr, size_t size);
+
+/* system info */
 IAPBool iap_platform_get_ipod_serial_num(void* platform, struct IAPSpan* serial);
+
+/* audio controls */
 IAPBool iap_platform_get_play_status(void* platform, struct IAPPlatformPlayStatus* status);
 IAPBool iap_platform_control(void* platform, enum IAPPlatformControl control);
 IAPBool iap_platform_get_volume(void* platform, struct IAPPlatformVolumeStatus* status);
@@ -77,6 +82,9 @@ IAPBool iap_platform_get_indexed_track_info(void* platform, uint32_t index, stru
 IAPBool iap_platform_open_artwork(void* platform, uint32_t index, uintptr_t* handle);
 IAPBool iap_platform_get_artwork_ptr(void* platform, uintptr_t handle, struct IAPSpan* span);
 IAPBool iap_platform_close_artwork(void* platform, uintptr_t handle);
+
+/* other callbacks */
+IAPBool iap_platform_on_acc_samprs_received(void* platform, struct IAPSpan* samprs);
 
 /* debugging */
 void iap_platform_dump_hex(const void* ptr, size_t size);

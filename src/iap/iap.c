@@ -177,16 +177,6 @@ static IAPBool send_sample_rate_caps_cb(struct IAPContext* ctx) {
     return iap_true;
 }
 
-static IAPBool send_track_new_audio_attrs_cb(struct IAPContext* ctx) {
-    struct IAPSpan                            request = _iap_get_buffer_for_send_payload(ctx);
-    struct IAPTrackNewAudioAttributesPayload* payload = iap_span_alloc(&request, sizeof(*payload));
-    payload->sample_rate                              = swap_32(44100);
-    payload->sound_check                              = 0;
-    payload->volume_adjustment                        = 0;
-    check_ret(_iap_send_packet(ctx, IAPLingoID_DigitalAudio, IAPDigitalAudioCommandID_TrackNewAudioAttributes, (ctx->trans_id += 1), request.ptr), iap_false);
-    return iap_true;
-}
-
 static int32_t handle_in_auth(struct IAPContext* ctx, uint8_t lingo, uint16_t command, struct IAPSpan* request, struct IAPSpan* response) {
     switch(lingo) {
     case IAPLingoID_General:
@@ -826,18 +816,8 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
             return 0;
         } break;
         case IAPDigitalAudioCommandID_RetAccessorySampleRateCaps: {
-            print("accessory supported sample rates:");
-            while(request->size > 0) {
-                uint32_t sample_rate;
-                check_ret(iap_span_read_32(request, &sample_rate), -IAPAckStatus_EBadParameter);
-                IAP_LOGF("  %d", sample_rate);
-            }
+            check_ret(iap_platform_on_acc_samprs_received(ctx->platform, request), -IAPAckStatus_ECommandFailed);
             response->ptr = NULL; /* no response */
-            if(ctx->send_busy) {
-                ctx->on_send_complete = send_track_new_audio_attrs_cb;
-            } else {
-                check_ret(send_track_new_audio_attrs_cb(ctx), 0);
-            }
             return 0;
         } break;
         }
@@ -938,7 +918,7 @@ IAPBool _iap_feed_packet(struct IAPContext* ctx, const uint8_t* const data, cons
     /* read checksum */
     check_ret(span.size >= request.size + 1 /* checksum */, iap_false);
     const uint8_t checksum = data[request.size]; /* TODO: verify checksum */
-    print("processing iap request 0x%02X(%s):0x%04X length=%d while phase=%d", lingo, _iap_lingo_str(lingo), command, length, ctx->phase);
+    IAP_LOGF("0x%02X(%s):0x%04X length=%d phase=%d", lingo, _iap_lingo_str(lingo), command, length, ctx->phase);
 
     /* request handling */
     check_ret(iap_span_read_16(&request, &buf.u16), iap_false);
@@ -1032,5 +1012,25 @@ IAPBool _iap_send_packet(struct IAPContext* ctx, uint8_t lingo, uint16_t command
     *final_ptr = checksum;
 
     check_ret(_iap_send_hid_reports(ctx, ptr - ctx->send_buf, final_ptr - ctx->send_buf + 1 /* include checksum */), iap_false);
+    return iap_true;
+}
+
+static IAPBool send_track_new_audio_attrs_cb(struct IAPContext* ctx) {
+    struct IAPSpan                            request = _iap_get_buffer_for_send_payload(ctx);
+    struct IAPTrackNewAudioAttributesPayload* payload = iap_span_alloc(&request, sizeof(*payload));
+    payload->sample_rate                              = swap_32(ctx->selected_sampr);
+    payload->sound_check                              = 0;
+    payload->volume_adjustment                        = 0;
+    check_ret(_iap_send_packet(ctx, IAPLingoID_DigitalAudio, IAPDigitalAudioCommandID_TrackNewAudioAttributes, (ctx->trans_id += 1), request.ptr), iap_false);
+    return iap_true;
+}
+
+IAPBool iap_select_sampr(struct IAPContext* ctx, uint32_t sampr) {
+    ctx->selected_sampr = sampr;
+    if(ctx->send_busy) {
+        ctx->on_send_complete = send_track_new_audio_attrs_cb;
+    } else {
+        check_ret(send_track_new_audio_attrs_cb(ctx), 0);
+    }
     return iap_true;
 }
