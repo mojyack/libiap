@@ -1,8 +1,10 @@
 #pragma once
 #include "context.hpp"
 
-struct LinuxPlatformData {
-    int     fd;
-    Context ctx;
-};
+struct IAPContext;
 
+struct LinuxPlatformData {
+    int         fd;
+    Context     ctx;
+    IAPContext* iap_ctx;
+};

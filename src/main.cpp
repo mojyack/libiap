@@ -85,7 +85,8 @@ auto Context::set_state(const PlayState new_state) -> bool {
 
 auto main(const int argc, const char* const* argv) -> int {
     auto platform = LinuxPlatformData{
-        .fd = open("/dev/iap0", O_RDWR),
+        .fd      = open("/dev/iap0", O_RDWR),
+        .iap_ctx = &iap_ctx,
     };
     ensure(platform.fd >= 0);
     iap_ctx = IAPContext{.platform = &platform};

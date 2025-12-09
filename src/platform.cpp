@@ -2,6 +2,7 @@
 
 #include "artwork.hpp"
 #include "context.hpp"
+#include "iap/iap.h"
 #include "iap/platform.h"
 #include "macros/assert.hpp"
 #include "platform-macros.h"
@@ -214,6 +215,22 @@ IAPBool iap_platform_close_artwork(void* platform, uintptr_t handle) {
     (void)platform;
     delete[](std::byte*)handle;
     return iap_true;
+}
+
+IAPBool iap_platform_on_acc_samprs_received(void* platform, struct IAPSpan* samprs) {
+    constexpr auto error_value = iap_false;
+
+    const auto iap_ctx = ((struct LinuxPlatformData*)platform)->iap_ctx;
+
+    while(samprs->size > 0) {
+        uint32_t sample_rate;
+        ensure_v(iap_span_read_32(samprs, &sample_rate));
+        if(sample_rate == 44100) {
+            ensure_v(iap_select_sampr(iap_ctx, sample_rate));
+            break;
+        }
+    }
+    bail_v("accessory does not support 44100Hz");
 }
 
 void iap_platform_dump_hex(const void* ptr, size_t size) {

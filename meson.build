@@ -53,5 +53,6 @@ executable(
     dependencies: [
         dependency('libspa-0.2'),
         dependency('libpipewire-0.3'),
+        cpp.find_library('asound'),
     ],
 )
