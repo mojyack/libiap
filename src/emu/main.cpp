@@ -307,11 +307,15 @@ auto auth_task_main(const ParsedIAPFrame& frame) -> CoGenerator<bool> {
     co_return true;
 }
 
-auto pfds = std::vector{
+constexpr auto pfds_stdin = 0;
+constexpr auto pfds_iap   = 1;
+constexpr auto pfds_alsa  = 2;
+
+auto pfds = std::array{
     pollfd{.fd = fileno(stdin), .events = POLLIN},
-    pollfd{.fd = 0 /*iap_fd*/, .events = POLLIN},
+    pollfd{.events = POLLIN}, /* iAP HID */
+    pollfd{},                 /* ALSA capture */
 };
-constexpr auto pfds_static_elms = 2;
 
 auto snd    = AutoSndPCM();
 auto pw_ctx = (pw::Context*)(nullptr);
@@ -325,9 +329,8 @@ auto start_audio(const uint32_t sample_rate) -> bool {
     ensure(snd_pcm_open(std::inout_ptr(snd), card_name.data(), SND_PCM_STREAM_CAPTURE, SND_PCM_NONBLOCK) == 0, "{}({})", errno, strerror(errno));
     ensure(snd_pcm_set_params(snd.get(), SND_PCM_FORMAT_S16_LE, SND_PCM_ACCESS_RW_INTERLEAVED, 2, sample_rate, 0, 500000) == 0);
     ensure(snd_pcm_prepare(snd.get()) == 0);
-    const auto pcm_pfds_count = snd_pcm_poll_descriptors_count(snd.get());
-    pfds.resize(pfds_static_elms + pcm_pfds_count);
-    snd_pcm_poll_descriptors(snd.get(), &pfds[pfds_static_elms], pfds.size() - pfds_static_elms);
+    ensure(snd_pcm_poll_descriptors_count(snd.get()) == 1);
+    snd_pcm_poll_descriptors(snd.get(), &pfds[pfds_alsa], 1);
     ensure(snd_pcm_start(snd.get()) == 0);
 
     /* playback */
@@ -481,7 +484,7 @@ auto main(const int argc, const char* const* argv) -> int {
     iap_fd = open(hiddev, O_RDWR);
     ensure(iap_fd >= 0);
 
-    pfds[1].fd = iap_fd;
+    pfds[pfds_iap].fd = iap_fd;
 
     auto hid_buf   = BytesArray();
     auto iap_frame = ParsedIAPFrame();
@@ -496,12 +499,12 @@ auto main(const int argc, const char* const* argv) -> int {
 loop:
     const auto ret = poll(pfds.data(), pfds.size(), -1);
     ensure(ret > 0);
-    if(pfds[0].revents & POLLIN) {
+    if(pfds[pfds_stdin].revents & POLLIN) {
         auto line = std::string();
         std::getline(std::cin, line);
         handle_stdin(line);
     }
-    if(pfds[1].revents & POLLIN) {
+    if(pfds[pfds_iap].revents & POLLIN) {
         auto buf = std::array<std::byte, 1024>();
         auto len = read(iap_fd, buf.data(), buf.size());
         std::println("==== dev ==== {} bytes", len);
@@ -522,12 +525,12 @@ loop:
         }
     }
 
-    if(pfds.size() <= pfds_static_elms) {
+    if(!snd) {
         goto loop;
     }
 
     auto revents = (unsigned short)(0);
-    ensure(snd_pcm_poll_descriptors_revents(snd.get(), &pfds[pfds_static_elms], pfds.size() - pfds_static_elms, &revents) == 0);
+    ensure(snd_pcm_poll_descriptors_revents(snd.get(), &pfds[pfds_alsa], 1, &revents) == 0);
     if(revents & POLLIN) {
         const auto frames = snd_pcm_avail(snd.get());
         ensure(frames > 0);
