@@ -22,6 +22,7 @@
 #include "util/coroutine.hpp"
 #include "util/critical.hpp"
 #include "util/hexdump.hpp"
+#include "util/pair-table.hpp"
 #include "util/split.hpp"
 
 // hid.cpp
@@ -30,6 +31,20 @@ auto encode_to_hid_reports(BytesRef ref) -> std::vector<BytesArray>;
 
 namespace {
 declare_autoptr(SndPCM, snd_pcm_t, snd_pcm_close);
+
+auto find_rockbox_card_index() -> std::optional<int> {
+    auto name = (char*)(nullptr);
+    for(auto i = 0;; i += 1) {
+        const auto ret = snd_card_get_name(i, &name);
+        ensure(ret == 0);
+        PRINT("{} name {}", i, name);
+        const auto found = std::string_view(name) == "Rockbox media player";
+        free(name);
+        if(found) {
+            return i;
+        }
+    }
+}
 
 auto to_bytes(std::string_view str) -> std::optional<std::vector<std::byte>> {
     auto ret = std::vector<std::byte>();
@@ -81,20 +96,22 @@ auto extract_payload(const ParsedIAPFrame& frame) -> const T* {
     return &payload;
 }
 
+#define cmd(Lingo, Command) IAPLingoID_##Lingo, IAP##Lingo##CommandID_##Command
+
 auto auth_task_main(const ParsedIAPFrame& frame) -> CoGenerator<bool> {
     constexpr auto error_value = false;
 
     {
-        co_ensure_v(send_command(IAPLingoID_General, IAPGeneralCommandID_StartIDPS));
+        co_ensure_v(send_command(cmd(General, StartIDPS)));
         co_yield true;
-        co_unwrap_v(payload, (extract_payload<IAPLingoID_General, IAPGeneralCommandID_IPodAck, IAPIPodAckPayload>(frame)));
+        co_unwrap_v(payload, (extract_payload<cmd(General, IPodAck), IAPIPodAckPayload>(frame)));
         co_ensure_v(payload.status == IAPAckStatus_Success);
     }
 
     {
-        co_ensure_v(send_command(IAPLingoID_General, IAPGeneralCommandID_RequestTransportMaxPayloadSize));
+        co_ensure_v(send_command(cmd(General, RequestTransportMaxPayloadSize)));
         co_yield true;
-        co_unwrap_v(payload, (extract_payload<IAPLingoID_General, IAPGeneralCommandID_ReturnTransportMaxPayloadSize, IAPReturnTransportMaxPayloadSizePayload>(frame)));
+        co_unwrap_v(payload, (extract_payload<cmd(General, ReturnTransportMaxPayloadSize), IAPReturnTransportMaxPayloadSizePayload>(frame)));
         PRINT("max payload size {}", swap(payload.max_payload_size));
     }
 
@@ -109,9 +126,9 @@ auto auth_task_main(const ParsedIAPFrame& frame) -> CoGenerator<bool> {
         const auto request = IAPGetIPodOptionsForLingoPayload{
             .lingo_id = uint8_t(lingo),
         };
-        co_ensure_v(send_command(IAPLingoID_General, IAPGeneralCommandID_GetIPodOptionsForLingo, &request, 1));
+        co_ensure_v(send_command(cmd(General, GetIPodOptionsForLingo), &request, 1));
         co_yield true;
-        auto payload = extract_payload<IAPLingoID_General, IAPGeneralCommandID_RetIPodOptionsForLingo, IAPRetIPodOptionsForLingoPayload>(frame);
+        auto payload = extract_payload<cmd(General, RetIPodOptionsForLingo), IAPRetIPodOptionsForLingoPayload>(frame);
         if(payload) {
             co_ensure_v(payload->lingo_id == lingo);
             PRINT("options for lingo {:02X}: {:08X}", payload->lingo_id, payload->bits);
@@ -240,16 +257,16 @@ auto auth_task_main(const ParsedIAPFrame& frame) -> CoGenerator<bool> {
                               });
         std::bit_cast<IAPSetFIDTokenValuesPayload*>(request.data())->num_token_values += 1;
 
-        co_ensure_v(send_command(IAPLingoID_General, IAPGeneralCommandID_SetFIDTokenValues, request.data(), request.size()));
+        co_ensure_v(send_command(cmd(General, SetFIDTokenValues), request.data(), request.size()));
         co_yield true;
-        co_unwrap_v(payload, (extract_payload<IAPLingoID_General, IAPGeneralCommandID_AckFIDTokenValues, IAPAckFIDTokenValuesPayload>(frame)));
+        co_unwrap_v(payload, (extract_payload<cmd(General, AckFIDTokenValues), IAPAckFIDTokenValuesPayload>(frame)));
         co_ensure_v(payload.num_token_value_acks == std::bit_cast<IAPSetFIDTokenValuesPayload*>(request.data())->num_token_values);
     }
     {
         const auto request = IAPEndIDPSPayload{.status = IAPEndIDPSStatus_Success};
-        co_ensure_v(send_command(IAPLingoID_General, IAPGeneralCommandID_EndIDPS, &request, sizeof(request)));
+        co_ensure_v(send_command(cmd(General, EndIDPS), &request, sizeof(request)));
         co_yield true;
-        co_unwrap_v(payload, (extract_payload<IAPLingoID_General, IAPGeneralCommandID_IDPSStatus, IAPIDPSStatusPayload>(frame)));
+        co_unwrap_v(payload, (extract_payload<cmd(General, IDPSStatus), IAPIDPSStatusPayload>(frame)));
         co_ensure_v(payload.status == IAPIDPSStatus_Success);
     }
 
@@ -267,24 +284,24 @@ auto auth_task_main(const ParsedIAPFrame& frame) -> CoGenerator<bool> {
                                   .cert_max_section_index     = 1,
                               });
         push_payload(request, std::array<uint8_t, 4>{1, 2, 3, 4});
-        co_ensure_v(send_command(IAPLingoID_General, IAPGeneralCommandID_RetAccessoryAuthenticationInfo, request.data(), request.size()));
+        co_ensure_v(send_command(cmd(General, RetAccessoryAuthenticationInfo), request.data(), request.size()));
 
         co_yield true;
 
-        co_unwrap_v(response, (extract_payload<IAPLingoID_General, IAPGeneralCommandID_AckAccessoryAuthenticationInfo, IAPAckAccAuthInfoPayload>(frame)));
+        co_unwrap_v(response, (extract_payload<cmd(General, AckAccessoryAuthenticationInfo), IAPAckAccAuthInfoPayload>(frame)));
         co_ensure_v(response.status == IAPAckAccAuthInfoStatus_Supported);
     }
     co_yield true;
     {
-        co_unwrap_v(request, (extract_payload<IAPLingoID_General, IAPGeneralCommandID_GetAccessoryAuthenticationSignature, IAPGetAccAuthSigPayload2p0>(frame)));
+        co_unwrap_v(request, (extract_payload<cmd(General, GetAccessoryAuthenticationSignature), IAPGetAccAuthSigPayload2p0>(frame)));
         PRINT("requested challenge:");
         dump_hex(std::span(request.challenge));
 
         auto response = std::array<uint8_t, 4>{5, 6, 7, 8};
-        co_ensure_v(send_command(IAPLingoID_General, IAPGeneralCommandID_RetAccessoryAuthenticationSignature, response.data(), response.size()));
+        co_ensure_v(send_command(cmd(General, RetAccessoryAuthenticationSignature), response.data(), response.size()));
         co_yield true;
 
-        co_unwrap_v(ack, (extract_payload<IAPLingoID_General, IAPGeneralCommandID_AckAccessoryAuthenticationStatus, IAPAckAccAuthSigPayload>(frame)));
+        co_unwrap_v(ack, (extract_payload<cmd(General, AckAccessoryAuthenticationStatus), IAPAckAccAuthSigPayload>(frame)));
         co_ensure_v(ack.status == IAPAckStatus_Success);
     }
     co_return true;
@@ -303,7 +320,9 @@ auto start_audio(const uint32_t sample_rate) -> bool {
     PRINT("starting audio samplr={}", sample_rate);
     /* capture */
     snd.reset();
-    ensure(snd_pcm_open(std::inout_ptr(snd), "hw:3,0", SND_PCM_STREAM_CAPTURE, SND_PCM_NONBLOCK) == 0, "{}({})", errno, strerror(errno));
+    unwrap(card, find_rockbox_card_index());
+    const auto card_name = std::format("hw:{},0", card);
+    ensure(snd_pcm_open(std::inout_ptr(snd), card_name.data(), SND_PCM_STREAM_CAPTURE, SND_PCM_NONBLOCK) == 0, "{}({})", errno, strerror(errno));
     ensure(snd_pcm_set_params(snd.get(), SND_PCM_FORMAT_S16_LE, SND_PCM_ACCESS_RW_INTERLEAVED, 2, sample_rate, 0, 500000) == 0);
     ensure(snd_pcm_prepare(snd.get()) == 0);
     const auto pcm_pfds_count = snd_pcm_poll_descriptors_count(snd.get());
@@ -324,10 +343,19 @@ auto start_audio(const uint32_t sample_rate) -> bool {
 auto handle_frame(ParsedIAPFrame frame) -> bool {
     PRINT("handling {:02X}:{:04X}", frame.lingo, frame.command);
     switch(frame.lingo) {
+    case IAPLingoID_ExtendedInterface:
+        switch(frame.command) {
+        case IAPExtendedInterfaceCommandID_IPodAck: {
+            unwrap(ack, (extract_payload<cmd(ExtendedInterface, IPodAck), IAPExtendedIPodAckPayload>(frame)));
+            PRINT("extended ack command=0x{:04X} status=0x{:02X}", ack.id, ack.status);
+            return true;
+        } break;
+        }
+        break;
     case IAPLingoID_DigitalAudio:
         switch(frame.command) {
         case IAPDigitalAudioCommandID_IPodAck: {
-            unwrap(ack, (extract_payload<IAPLingoID_DigitalAudio, IAPDigitalAudioCommandID_IPodAck, IAPAckAccAuthSigPayload>(frame)));
+            unwrap(ack, (extract_payload<cmd(DigitalAudio, IPodAck), IAPAckAccAuthSigPayload>(frame)));
             ensure(ack.status == IAPAckStatus_Success);
             return true;
         } break;
@@ -337,7 +365,7 @@ auto handle_frame(ParsedIAPFrame frame) -> bool {
                 swap(uint32_t(44100)),
                 swap(uint32_t(48000)),
             };
-            ensure(send_command(frame.lingo, IAPDigitalAudioCommandID_RetAccessorySampleRateCaps, &response, sizeof(response)));
+            ensure(send_command(cmd(DigitalAudio, RetAccessorySampleRateCaps), &response, sizeof(response)));
             return true;
         } break;
         case IAPDigitalAudioCommandID_TrackNewAudioAttributes: {
@@ -350,13 +378,49 @@ auto handle_frame(ParsedIAPFrame frame) -> bool {
                 .status = IAPAckStatus_Success,
                 .id     = uint8_t(frame.command),
             };
-            ensure(send_command(frame.lingo, IAPDigitalAudioCommandID_AccessoryAck, &response, sizeof(response)));
+            ensure(send_command(cmd(DigitalAudio, AccessoryAck), &response, sizeof(response)));
             return true;
         } break;
         }
         break;
     }
     return false;
+}
+
+auto handle_stdin(const std::string_view input) -> bool {
+    if(input.empty()) {
+        return true;
+    }
+    const auto elms = split(input, " ");
+    if(elms[0] == "raw") {
+        ensure(elms.size() == 2);
+        unwrap(bin, to_bytes(elms[1]));
+        PRINT("wrote {} bytes ({})", write(iap_fd, bin.data(), bin.size()), strerror(errno));
+    } else if(elms[0] == "sampr") {
+        ensure(elms.size() == 2);
+        unwrap(sampr, from_chars<uint32_t>(elms[1]));
+        ensure(start_audio(sampr));
+    } else if(elms[0] == "play") {
+        const auto request = IAPPlayControlPayload{IAPPlayControlCode_Play};
+        ensure(send_command(cmd(ExtendedInterface, PlayControl), &request, sizeof(request)));
+    } else if(elms[0] == "ctrl") {
+        ensure(elms.size() == 2);
+        static const auto table = make_pair_table<std::string_view, uint8_t>({
+            {"play", IAPPlayControlCode_Play},
+            {"stop", IAPPlayControlCode_Stop},
+            {"pause", IAPPlayControlCode_Pause},
+            {"toggle", IAPPlayControlCode_TogglePlayPause},
+            {"next", IAPPlayControlCode_Next},
+            {"prev", IAPPlayControlCode_Prev},
+        });
+        ensure(elms.size() == 2);
+        unwrap(act, table.find(elms[1]), "invalid control {}", elms[1]);
+        const auto request = IAPPlayControlPayload{act};
+        ensure(send_command(cmd(ExtendedInterface, PlayControl), &request, sizeof(request)));
+    } else {
+        bail("invalid command {}", elms[0]);
+    }
+    return true;
 }
 } // namespace
 
@@ -433,23 +497,9 @@ loop:
     const auto ret = poll(pfds.data(), pfds.size(), -1);
     ensure(ret > 0);
     if(pfds[0].revents & POLLIN) {
-#define error_act goto loop
         auto line = std::string();
         std::getline(std::cin, line);
-        if(line.empty()) {
-            goto loop;
-        }
-        const auto elms = split(line, " ");
-        if(elms[0] == "raw") {
-            ensure_a(elms.size() == 2);
-            unwrap_a(bin, to_bytes(elms[1]));
-            PRINT("wrote {} bytes ({})", write(iap_fd, bin.data(), bin.size()), strerror(errno));
-        } else if(elms[0] == "sampr") {
-            ensure_a(elms.size() == 2);
-            unwrap_a(sampr, from_chars<uint32_t>(elms[1]));
-            ensure_a(start_audio(sampr));
-        }
-#undef error_act
+        handle_stdin(line);
     }
     if(pfds[1].revents & POLLIN) {
         auto buf = std::array<std::byte, 1024>();
