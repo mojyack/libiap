@@ -15,6 +15,12 @@ enum IAPPlatformMallocFlags {
     IAPPlatformMallocFlags_Uncached = 1 << 0,
 };
 
+/* iap_platform_get_usb_speed */
+enum IAPPlatformUSBSpeed {
+    IAPPlatformUSBSpeed_Full,
+    IAPPlatformUSBSpeed_High,
+};
+
 /* iap_platform_get_play_status */
 struct IAPPlatformPlayStatus {
     uint32_t track_total_ms;
@@ -65,6 +71,7 @@ int     iap_platform_send_hid_report(void* platform, const void* ptr, size_t siz
 
 /* system info */
 IAPBool iap_platform_get_ipod_serial_num(void* platform, struct IAPSpan* serial);
+enum IAPPlatformUSBSpeed iap_platform_get_usb_speed(void* platform);
 
 /* audio controls */
 IAPBool iap_platform_get_play_status(void* platform, struct IAPPlatformPlayStatus* status);

@@ -12,6 +12,9 @@
 #include "unaligned.h"
 
 IAPBool iap_init_ctx(struct IAPContext* ctx) {
+    const IAPBool  hs                      = iap_platform_get_usb_speed(ctx->platform) == IAPPlatformUSBSpeed_High;
+    const uint16_t max_input_hid_desc_size = hs ? 0x02FF : 0x3F;
+
     ctx->hid_recv_buf = iap_platform_malloc(ctx->platform, HID_BUFFER_SIZE, 0);
     check_ret(ctx->hid_recv_buf != NULL, iap_false);
     ctx->hid_recv_buf_cursor = 0;
@@ -28,9 +31,7 @@ IAPBool iap_init_ctx(struct IAPContext* ctx) {
     ctx->enabled_notifications        = 0;
     ctx->notifications                = 0;
     ctx->notification_tick            = 0;
-    ctx->hid_send_staging_buf         = iap_platform_malloc(ctx->platform,
-                                                            0x3F /* max hid report size */ + 1 /* report id */,
-                                                            IAPPlatformMallocFlags_Uncached);
+    ctx->hid_send_staging_buf         = iap_platform_malloc(ctx->platform, max_input_hid_desc_size + 1 /* report id */, IAPPlatformMallocFlags_Uncached);
     check_ret(ctx->hid_send_staging_buf != NULL, iap_false);
     ctx->send_busy              = iap_false;
     ctx->flushing_notifications = iap_false;

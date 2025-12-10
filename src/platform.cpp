@@ -1,12 +1,14 @@
+#include <fcntl.h>
 #include <unistd.h>
 
 #include "artwork.hpp"
 #include "context.hpp"
 #include "iap/iap.h"
 #include "iap/platform.h"
-#include "macros/assert.hpp"
+#include "macros/unwrap.hpp"
 #include "platform-macros.h"
 #include "platform.hpp"
+#include "util/fd.hpp"
 #include "util/hexdump.hpp"
 
 extern "C" {
@@ -32,6 +34,20 @@ IAPBool iap_platform_get_ipod_serial_num(void* platform, struct IAPSpan* serial)
     (void)platform;
     static const char* serial_num = "000000000000";
     return iap_span_append(serial, serial_num, sizeof(serial_num));
+}
+
+enum IAPPlatformUSBSpeed iap_platform_get_usb_speed(void* platform) {
+    (void)platform;
+    static auto cache = IAPPlatformUSBSpeed(-1);
+    if(cache < 0) {
+        constexpr auto error_value = IAPPlatformUSBSpeed_Full;
+        const auto     fd          = FileDescriptor(open("/sys/module/g_ipod_hid/parameters/usb_hs", O_RDONLY));
+        ensure_v(fd.as_handle() >= 0);
+        unwrap_v(data, fd.read<char>());
+        cache = data == 'Y' ? IAPPlatformUSBSpeed_High : IAPPlatformUSBSpeed_Full;
+        PRINT("hs: {}", data);
+    }
+    return cache;
 }
 
 IAPBool iap_platform_get_play_status(void* platform, struct IAPPlatformPlayStatus* status) {
