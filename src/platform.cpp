@@ -33,7 +33,7 @@ int iap_platform_send_hid_report(void* platform, const void* ptr, size_t size) {
 IAPBool iap_platform_get_ipod_serial_num(void* platform, struct IAPSpan* serial) {
     (void)platform;
     static const char* serial_num = "000000000000";
-    return iap_span_append(serial, serial_num, sizeof(serial_num));
+    return iap_span_append(serial, serial_num, strlen(serial_num) + 1);
 }
 
 enum IAPPlatformUSBSpeed iap_platform_get_usb_speed(void* platform) {
