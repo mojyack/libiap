@@ -117,8 +117,8 @@ enum IAPPlayStatusChangeNotificationTrackMediaTypePlayMode {
     IAPPlayStatusChangeNotificationTrackMediaTypePlayMode_Video = 0x01,
 };
 
-struct IAPPlayStatusChangeNotificationTrackMediaTypePayload {
-    uint8_t type;      /* = IAPStatusChangeNotificationType_TrackMediaType */
+struct IAPPlayStatusChangeNotificationTrackPlaybackModePayload {
+    uint8_t type;      /* = IAPStatusChangeNotificationType_TrackPlaybackMode */
     uint8_t play_mode; /* IAPPlayStatusChangeNotificationTrackMediaTypePlayMode */
 } __attribute__((packed));
 

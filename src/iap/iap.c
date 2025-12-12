@@ -28,8 +28,10 @@ IAPBool iap_init_ctx(struct IAPContext* ctx) {
     ctx->handling_trans_id            = -1;
     ctx->artwork_handle               = 0;
     ctx->trans_id                     = 0;
-    ctx->enabled_notifications        = 0;
-    ctx->notifications                = 0;
+    ctx->enabled_notifications_3      = 0;
+    ctx->notifications_3              = 0;
+    ctx->enabled_notifications_4      = 0;
+    ctx->notifications_4              = 0;
     ctx->notification_tick            = 0;
     ctx->hid_send_staging_buf         = iap_platform_malloc(ctx->platform, max_input_hid_desc_size + 1 /* report id */, IAPPlatformMallocFlags_Uncached);
     check_ret(ctx->hid_send_staging_buf != NULL, iap_false);
@@ -282,6 +284,31 @@ static IAPBool send_artwork_chunk_cb(struct IAPContext* ctx) {
     return iap_true;
 }
 
+static uint32_t play_stage_change_notification_set_mask_to_type_mask(uint32_t mask) {
+    uint32_t ret = 0;
+    if(mask & IAPStatusChangeNotificationBits_Basic) {
+        ret |= 1 << IAPStatusChangeNotificationType_PlaybackStopped |
+               1 << IAPStatusChangeNotificationType_PlaybackFEWSeekStop |
+               1 << IAPStatusChangeNotificationType_PlaybackREWSeekStop;
+    }
+    if(mask & IAPStatusChangeNotificationBits_Extended) {
+        ret |= 1 << IAPStatusChangeNotificationType_PlaybackStatusExtended;
+    }
+    if(mask & IAPStatusChangeNotificationBits_TrackIndex) {
+        ret |= 1 << IAPStatusChangeNotificationType_TrackIndex;
+    }
+    if(mask & IAPStatusChangeNotificationBits_TrackTimeOffsetMSec) {
+        ret |= 1 << IAPStatusChangeNotificationType_TrackTimeOffsetMSec;
+    }
+    if(mask & IAPStatusChangeNotificationBits_TrackTimeOffsetSec) {
+        ret |= 1 << IAPStatusChangeNotificationType_TrackTimeOffsetSec;
+    }
+    if(mask & IAPStatusChangeNotificationBits_PlaybackEngineContentsChanged) {
+        ret |= 1 << IAPStatusChangeNotificationType_PlaybackEngineContentsChanged;
+    }
+    return ret;
+}
+
 static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t command, struct IAPSpan* request, struct IAPSpan* response) {
     switch(lingo) {
     case IAPLingoID_General:
@@ -317,8 +344,8 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
         case IAPDisplayRemoteCommandID_SetRemoteEventNotification: {
             const struct IAPSetRemoteEventNotificationPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
-            ctx->enabled_notifications = swap_32(request_payload->mask);
-            print("set remote event notification 0x%04X", ctx->enabled_notifications);
+            ctx->enabled_notifications_3 = swap_32(request_payload->mask);
+            print("set remote event notification 0x%04X", ctx->enabled_notifications_3);
 
             alloc_response(IAPIPodAckPayload, payload);
             payload->status = IAPAckStatus_Success;
@@ -708,11 +735,23 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
         case IAPExtendedInterfaceCommandID_SetPlayStatusChangeNotification: {
             if(request->size == sizeof(struct IAPSetPlayStatusChangeNotification1BytePayload)) {
                 const struct IAPSetPlayStatusChangeNotification1BytePayload* request_payload = iap_span_read(request, sizeof(*request_payload));
-                print("play status change notification %s", request_payload->enable ? "enabled" : "disabled");
+                check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
+                if(request_payload->enable) {
+                    ctx->enabled_notifications_4 = 1 << IAPStatusChangeNotificationType_PlaybackStopped |
+                                                   1 << IAPStatusChangeNotificationType_TrackIndex |
+                                                   1 << IAPStatusChangeNotificationType_PlaybackFEWSeekStop |
+                                                   1 << IAPStatusChangeNotificationType_PlaybackREWSeekStop |
+                                                   1 << IAPStatusChangeNotificationType_TrackTimeOffsetMSec |
+                                                   1 << IAPStatusChangeNotificationType_ChapterIndex;
+                } else {
+                    ctx->enabled_notifications_4 = 0;
+                }
             } else if(request->size == sizeof(struct IAPSetPlayStatusChangeNotification4BytesPayload)) {
                 const struct IAPSetPlayStatusChangeNotification4BytesPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
-                print("play status change notification mask 0x%04X", swap_32(request_payload->mask));
+                check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
+                ctx->enabled_notifications_4 = play_stage_change_notification_set_mask_to_type_mask(swap_32(request_payload->mask));
             }
+            print("play status change notification 0x%04X", ctx->enabled_notifications_4);
             alloc_response(IAPExtendedIPodAckPayload, payload);
             payload->status = IAPAckStatus_Success;
             payload->id     = swap_16(command);

@@ -35,8 +35,13 @@ struct IAPContext {
     int32_t   artwork_trans_id;
     uint32_t  selected_sampr;
     /* notification.c */
-    uint32_t               enabled_notifications;
-    uint32_t               notifications;
+    /* DisplayRemote::SetRemoteEventNotification */
+    uint32_t               enabled_notifications_3;
+    uint32_t               notifications_3;
+    /* ExtendedInterface::SetPlayStatusChangeNotification */
+    uint32_t enabled_notifications_4;
+    uint32_t notifications_4;
+    /* notification data */
     struct _IAPNotifyState notification_data;
     uint8_t                notification_tick;
     /* _iap_send_hid_reports */
