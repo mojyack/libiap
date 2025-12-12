@@ -26,6 +26,8 @@
 #include "util/split.hpp"
 
 // hid.cpp
+extern bool hs;
+
 auto parse_hid_report(BytesArray& buf, BytesRef ref) -> bool;
 auto encode_to_hid_reports(BytesRef ref) -> std::vector<BytesArray>;
 
@@ -551,6 +553,7 @@ auto main(const int argc, const char* const* argv) -> int {
         parser.arg(&hiddev, "PATH", "path to hid device");
         parser.kwflag(&authed, {"-a"}, "assume authed");
         parser.kwflag(&no_audio, {"-n"}, "disable audio streaming");
+        parser.kwflag(&hs, {"-f"}, "assume usb fullspeed", {.invert_flag_value = true});
         ensure(parser.parse(argc, argv));
     }
     iap_fd = open(hiddev, O_RDWR);
