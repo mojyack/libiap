@@ -16,16 +16,11 @@
 #include "macros/unwrap.hpp"
 #include "platform.hpp"
 #include "util/hexdump.hpp"
+#include "util/split.hpp"
 
 declare_autoptr(SndPCM, snd_pcm_t, snd_pcm_close);
 
 namespace {
-auto read_stdin() -> bool {
-    auto line = std::string();
-    std::getline(std::cin, line);
-    return true;
-}
-
 auto time_now() -> std::chrono::system_clock::time_point {
     return std::chrono::system_clock::now();
 }
@@ -34,8 +29,25 @@ auto diff_ms(std::chrono::system_clock::time_point a, std::chrono::system_clock:
     return std::chrono::duration_cast<std::chrono::milliseconds>(a - b).count();
 }
 
-auto snd     = AutoSndPCM();
-auto iap_ctx = IAPContext();
+auto snd      = AutoSndPCM();
+auto iap_ctx  = IAPContext();
+auto platform = LinuxPlatformData();
+
+auto handle_stdin(const std::string_view input) -> bool {
+    if(input.empty()) {
+        return true;
+    }
+    const auto elms = split(input, " ");
+    if(elms[0] == "next") {
+        ensure(platform.ctx.skip_track(1));
+    } else if(elms[0] == "prev") {
+        ensure(platform.ctx.skip_track(-1));
+    } else {
+        bail("invalid command {}", elms[0]);
+    }
+    return true;
+}
+
 } // namespace
 
 auto Context::set_state(const PlayState new_state) -> bool {
@@ -84,8 +96,17 @@ auto Context::set_state(const PlayState new_state) -> bool {
     return true;
 }
 
+auto Context::skip_track(const int diff) -> bool {
+    const auto new_track = int(current_track) + diff;
+    ensure(new_track >= 0 && new_track < int(tracks.size()));
+    current_track = new_track;
+    pcm_cursor    = 0;
+    iap_notify_track_playback_index(&iap_ctx, current_track);
+    return true;
+}
+
 auto main(const int argc, const char* const* argv) -> int {
-    auto platform = LinuxPlatformData{
+    platform = {
         .fd      = open("/dev/iap0", O_RDWR),
         .iap_ctx = &iap_ctx,
     };
@@ -101,8 +122,9 @@ auto main(const int argc, const char* const* argv) -> int {
 
     ensure(argc > 1);
     for(auto i = 1; i < argc; i += 1) {
-        unwrap_mut(audio, decode_flac(argv[1]));
+        unwrap_mut(audio, decode_flac(argv[i], true));
         unwrap_mut(track, build_track(std::move(audio)));
+        track.file = argv[i];
         PRINT("title={}", track.title);
         PRINT("album={}", track.album);
         PRINT("artist={}", track.artist);
@@ -135,7 +157,9 @@ loop:
         goto loop; /* timed out */
     }
     if(stdin_pfd.revents & POLLIN) {
-        ensure(read_stdin());
+        auto line = std::string();
+        std::getline(std::cin, line);
+        handle_stdin(line);
     }
     if(iap_pfd.revents & POLLOUT) {
         iap_notify_send_complete(&iap_ctx);
@@ -154,11 +178,18 @@ loop:
     auto revents = (unsigned short)(0);
     ensure(snd_pcm_poll_descriptors_revents(snd.get(), &pfds[2], pcm_pfds_count, &revents) == 0);
     if(revents & POLLOUT) {
-        const auto& pcm = ctx.tracks[ctx.current_track].data;
-        const auto  ret = snd_pcm_writei(snd.get(), pcm.data() + ctx.pcm_cursor, (pcm.size() - ctx.pcm_cursor) / 2);
+        auto& track = ctx.tracks[ctx.current_track];
+        if(track.data.empty()) {
+            unwrap_mut(audio, decode_flac(track.file.data(), false));
+            track.data = std::move(audio.data);
+        }
+        const auto ret = snd_pcm_writei(snd.get(), track.data.data() + ctx.pcm_cursor, (track.data.size() - ctx.pcm_cursor) / 2);
         if(ret > 0) {
             ctx.pcm_cursor += ret * 2;
             iap_notify_track_time_position(&iap_ctx, samples_to_ms(ctx.pcm_cursor));
+            if(ctx.pcm_cursor >= track.data.size()) {
+                ensure(ctx.skip_track(1));
+            }
         } else if(ret == -EPIPE) {
             /* underrun */
             ensure(snd_pcm_prepare(snd.get()) == 0);

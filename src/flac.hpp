@@ -13,4 +13,4 @@ struct AudioFile {
     std::vector<std::string> comments;
 };
 
-auto decode_flac(const char* path) -> std::optional<AudioFile>;
+auto decode_flac(const char* path, bool metadata) -> std::optional<AudioFile>;
