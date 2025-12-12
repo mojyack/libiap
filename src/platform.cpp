@@ -98,14 +98,10 @@ IAPBool iap_platform_control(void* platform, enum IAPPlatformControl control) {
         ensure_v(ctx.set_state(PlayState::Stopped));
     } break;
     case IAPPlatformControl_Next: {
-        ensure_v(ctx.current_track + 1 < ctx.tracks.size());
-        ctx.current_track += 1;
-        ctx.pcm_cursor = 0;
+        ensure_v(ctx.skip_track(1));
     } break;
     case IAPPlatformControl_Prev: {
-        ensure_v(ctx.current_track > 1);
-        ctx.current_track -= 1;
-        ctx.pcm_cursor = 0;
+        ensure_v(ctx.skip_track(-1));
     } break;
     }
     return iap_true;
@@ -244,7 +240,7 @@ IAPBool iap_platform_on_acc_samprs_received(void* platform, struct IAPSpan* samp
         ensure_v(iap_span_read_32(samprs, &sample_rate));
         if(sample_rate == 44100) {
             ensure_v(iap_select_sampr(iap_ctx, sample_rate));
-            break;
+            return true;
         }
     }
     bail_v("accessory does not support 44100Hz");
