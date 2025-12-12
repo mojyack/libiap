@@ -566,11 +566,9 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
             const uint16_t count = swap_16(request_payload->artwork_count);
             check_ret(count == 0 || count == 1, -IAPAckStatus_ECommandFailed, "not implemented");
 
-            uint32_t* payload = iap_span_alloc(response, sizeof(uint32_t) * count);
+            void* payload = iap_span_alloc(response, sizeof(uint32_t) * count);
             check_ret(payload != NULL, iap_false);
-            for(uint16_t i = 0; i < count; i += 1) {
-                payload[i] = 0;
-            }
+            memset(payload, 0, sizeof(uint32_t) * count);
             return IAPDisplayRemoteCommandID_RetTrackArtworkTimes;
         } break;
         }
