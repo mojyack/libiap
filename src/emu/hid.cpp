@@ -43,6 +43,10 @@ const auto input_report_size_table_hs = std::array{
     ReportSize{.id = 0x0C, .size = 0x02FF},
 };
 
+// my development machine can't send large(>64B) control-out packets...
+// TODO: fix rk3588 udc driver
+#define NO_MULTIPACKET_OUTPUT_QUIRK 1
+
 const auto output_report_size_table_hs = std::array{
     ReportSize{.id = 0x0D, .size = 0x05},
     ReportSize{.id = 0x0E, .size = 0x09},
@@ -50,9 +54,11 @@ const auto output_report_size_table_hs = std::array{
     ReportSize{.id = 0x10, .size = 0x11},
     ReportSize{.id = 0x11, .size = 0x19},
     ReportSize{.id = 0x12, .size = 0x31},
+#if !NO_MULTIPACKET_OUTPUT_QUIRK
     ReportSize{.id = 0x13, .size = 0x5F},
     ReportSize{.id = 0x14, .size = 0xC1},
     ReportSize{.id = 0x15, .size = 0xFF},
+#endif
 };
 
 auto find_input_report_size( const uint8_t id) -> std::optional<uint8_t> {
