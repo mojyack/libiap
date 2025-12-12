@@ -1,4 +1,5 @@
 #include <fcntl.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "artwork.hpp"

@@ -1,5 +1,6 @@
 #include <FLAC++/decoder.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "flac.hpp"
 #include "macros/assert.hpp"
