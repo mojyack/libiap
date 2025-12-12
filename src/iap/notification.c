@@ -145,7 +145,7 @@ IAPBool _iap_flush_notification(struct IAPContext* ctx) {
                   payload->caps = swap_32(ctx->notification_data.track_caps));
     send_notify_3(IAPIPodStateTrackTimePositionSecPayload,
                   IAPIPodStateType_TrackTimePositionSec,
-                  payload->position_s = swap_32(ctx->notification_data.track_time_position_ms / 1000));
+                  payload->position_s = swap_16(ctx->notification_data.track_time_position_ms / 1000));
     send_notify_3(IAPIPodStatePlaybackEngineContentsPayload,
                   IAPIPodStateType_PlaybackEngineContents,
                   payload->count = swap_32(ctx->notification_data.tracks_count));

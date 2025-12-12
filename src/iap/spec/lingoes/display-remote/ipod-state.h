@@ -154,7 +154,7 @@ struct IAPIPodStateAudiobookSpeeedPayload {
 
 struct IAPIPodStateTrackTimePositionSecPayload {
     uint8_t  type; /* = IAPIPodStateType_TrackTimePositionSec */
-    uint32_t position_s;
+    uint16_t position_s;
 } __attribute__((packed));
 
 struct IAPIPodStateAbsoluteVolumePayload {
