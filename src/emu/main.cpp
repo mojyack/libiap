@@ -31,6 +31,9 @@ extern bool hs;
 auto parse_hid_report(BytesArray& buf, BytesRef ref) -> bool;
 auto encode_to_hid_reports(BytesRef ref) -> std::vector<BytesArray>;
 
+// artwork.cpp
+auto save_rgb565le(BytesRef ref, uint16_t width, uint16_t height, const char* file) -> bool;
+
 namespace {
 declare_autoptr(SndPCM, snd_pcm_t, snd_pcm_close);
 
@@ -345,6 +348,19 @@ auto start_audio(const uint32_t sample_rate) -> bool {
     return true;
 }
 
+struct Artwork {
+    uint16_t               index;
+    uint16_t               width;
+    uint16_t               height;
+    std::vector<std::byte> data;
+
+    auto calc_data_size() const -> size_t {
+        return width * height * 2;
+    }
+};
+
+auto artwork = std::optional<Artwork>();
+
 auto handle_frame(ParsedIAPFrame frame) -> bool {
     PRINT("handling 0x{:02X}:0x{:04X}", frame.lingo, frame.command);
     switch(frame.lingo) {
@@ -402,6 +418,35 @@ auto handle_frame(ParsedIAPFrame frame) -> bool {
                 break;
             }
             return true;
+        } break;
+        case IAPDisplayRemoteCommandID_RetTrackArtworkData: {
+            auto data = BytesRef();
+            if(!artwork) {
+                unwrap(resp, bytes_as<IAPRetTrackArtworkDataFirstPayload>(frame.payload));
+                ensure(swap(resp.index) == 0);
+                artwork.emplace(Artwork{
+                    .index  = 1,
+                    .width  = swap(resp.pixel_width),
+                    .height = swap(resp.pixel_height),
+                });
+                artwork->data.reserve(artwork->calc_data_size());
+                data = frame.payload.subspan(sizeof(resp));
+            } else {
+                unwrap(resp, bytes_as<IAPRetTrackArtworkDataSubsequenctPayload>(frame.payload));
+                ensure(artwork->index == swap(resp.index));
+                artwork->index += 1;
+                data = frame.payload.subspan(sizeof(resp));
+            }
+            const auto prev_size = artwork->data.size();
+            artwork->data.resize(prev_size + data.size());
+            memcpy(artwork->data.data() + prev_size, data.data(), data.size());
+            PRINT("artwork {}kBytes", artwork->data.size() / 1024);
+            if(artwork->data.size() >= artwork->calc_data_size()) {
+                ensure(artwork->data.size() == artwork->calc_data_size());
+                save_rgb565le(artwork->data, artwork->width, artwork->height, "/tmp/artwork.png");
+                PRINT("artwork saved");
+                artwork.reset();
+            }
         } break;
         }
         break;
@@ -576,6 +621,16 @@ auto handle_stdin(const std::string_view input) -> bool {
             .mask = swap(set),
         };
         ensure(send_command(cmd(DisplayRemote, SetRemoteEventNotification), &request, sizeof(request)));
+    } else if(elms[0] == "artwork") { /* artwork INDEX */
+        ensure(elms.size() == 2);
+        unwrap(index, from_chars<uint32_t>(elms[1]));
+        artwork.reset();
+        const auto request = IAPGetTrackArtworkDataPayload{
+            .track_index = swap(index),
+            .format_id   = 0,
+            .offset_ms   = 0,
+        };
+        ensure(send_command(cmd(DisplayRemote, GetTrackArtworkData), &request, sizeof(request)));
     } else {
         bail("invalid command {}", elms[0]);
     }

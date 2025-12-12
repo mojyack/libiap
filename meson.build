@@ -45,12 +45,14 @@ executable(
 executable(
     'emulator',
     files(
+        'src/emu/artwork.cpp',
         'src/emu/hid.cpp',
         'src/emu/iap.cpp',
         'src/emu/main.cpp',
         'src/emu/pw.cpp',
     ),
     dependencies: [
+        dependency('Magick++'),
         dependency('libspa-0.2'),
         dependency('libpipewire-0.3'),
         cpp.find_library('asound'),

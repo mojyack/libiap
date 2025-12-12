@@ -45,7 +45,7 @@ const auto input_report_size_table_hs = std::array{
 
 // my development machine can't send large(>64B) control-out packets...
 // TODO: fix rk3588 udc driver
-#define NO_MULTIPACKET_OUTPUT_QUIRK 1
+#define NO_MULTIPACKET_OUTPUT_QUIRK 0
 
 const auto output_report_size_table_hs = std::array{
     ReportSize{.id = 0x0D, .size = 0x05},
@@ -61,7 +61,7 @@ const auto output_report_size_table_hs = std::array{
 #endif
 };
 
-auto find_input_report_size( const uint8_t id) -> std::optional<uint8_t> {
+auto find_input_report_size(const uint8_t id) -> std::optional<uint16_t> {
     const auto ptr = hs ? input_report_size_table_hs.data() : input_report_size_table_fs.data();
     const auto len = hs ? input_report_size_table_hs.size() : input_report_size_table_fs.size();
     for(auto i = 0uz; i < len; i += 1) {
@@ -72,7 +72,7 @@ auto find_input_report_size( const uint8_t id) -> std::optional<uint8_t> {
     return std::nullopt;
 }
 
-auto find_optimal_report_size( const size_t size) -> ReportSize {
+auto find_optimal_report_size(const size_t size) -> ReportSize {
     const auto ptr = hs ? output_report_size_table_hs.data() : output_report_size_table_fs.data();
     const auto len = hs ? output_report_size_table_hs.size() : output_report_size_table_fs.size();
     for(auto i = 0uz; i < len; i += 1) {
