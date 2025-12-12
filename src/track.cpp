@@ -16,7 +16,6 @@ auto build_track(AudioFile audio) -> std::optional<Track> {
         .total_samples = audio.total_samples,
         .sample_rate   = audio.sample_rate,
         .channels      = audio.channels,
-        .data          = std::move(audio.data),
         .cover         = std::move(audio.cover),
     };
     // parse comments

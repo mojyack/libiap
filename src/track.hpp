@@ -2,6 +2,7 @@
 #include "flac.hpp"
 
 struct Track {
+    std::string            file;
     size_t                 total_samples;
     uint32_t               sample_rate;
     uint8_t                channels;

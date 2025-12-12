@@ -61,16 +61,22 @@ class Decoder : public FLAC::Decoder::File {
     }
 };
 
-auto decode_flac(const char* path) -> std::optional<AudioFile> {
+auto decode_flac(const char* path, bool metadata) -> std::optional<AudioFile> {
     auto file = AutoFile(fopen(path, "rb"));
     ensure(file.get() != NULL);
 
     auto ret     = AudioFile();
     auto decoder = Decoder(ret);
     ensure(decoder.init(file.get()) == FLAC__STREAM_DECODER_INIT_STATUS_OK);
-    ensure(decoder.set_metadata_respond(FLAC__METADATA_TYPE_PICTURE));
-    ensure(decoder.set_metadata_respond(FLAC__METADATA_TYPE_VORBIS_COMMENT));
+    if(metadata) {
+        ensure(decoder.set_metadata_respond(FLAC__METADATA_TYPE_PICTURE));
+        ensure(decoder.set_metadata_respond(FLAC__METADATA_TYPE_VORBIS_COMMENT));
+    }
     [[maybe_unused]] auto _ = file.release(); // moved to decoder
-    ensure(decoder.process_until_end_of_stream());
+    if(metadata) {
+        ensure(decoder.process_until_end_of_metadata());
+    } else {
+        ensure(decoder.process_until_end_of_stream());
+    }
     return ret;
 }

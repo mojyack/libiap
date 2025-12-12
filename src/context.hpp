@@ -14,4 +14,5 @@ struct Context {
     PlayState          play_state = PlayState::Stopped;
 
     auto set_state(PlayState new_state) -> bool;
+    auto skip_track(int diff) -> bool;
 };
