@@ -50,7 +50,7 @@ auto find_rockbox_card_index() -> std::optional<int> {
 
 auto to_bytes(std::string_view str) -> std::optional<std::vector<std::byte>> {
     auto ret = std::vector<std::byte>();
-    for(const auto e : split(str, " ")) {
+    for(const auto e : split(str, ",")) {
         unwrap(n, from_chars<uint8_t>(e, 16));
         ret.push_back(std::byte(n));
     }
@@ -348,18 +348,75 @@ auto start_audio(const uint32_t sample_rate) -> bool {
 auto handle_frame(ParsedIAPFrame frame) -> bool {
     PRINT("handling 0x{:02X}:0x{:04X}", frame.lingo, frame.command);
     switch(frame.lingo) {
+    case IAPLingoID_DisplayRemote:
+        switch(frame.command) {
+        case IAPDisplayRemoteCommandID_RemoteEventNotification: {
+            unwrap(resp, bytes_as<IAPIPodStatePayload>(frame.payload));
+            switch(resp.type) {
+            case IAPIPodStateType_TrackTimePositionMSec: {
+                unwrap(resp, bytes_as<IAPIPodStateTrackTimePositionMSecPayload>(frame.payload));
+                PRINT("notify: track time position {}ms", swap(resp.position_ms));
+            } break;
+            case IAPIPodStateType_TrackPlaybackIndex: {
+                unwrap(resp, bytes_as<IAPIPodStateTrackPlaybackIndexPayload>(frame.payload));
+                PRINT("notify: track playback index {}", swap(resp.index));
+            } break;
+            case IAPIPodStateType_PlaybackEngineContents: {
+                unwrap(resp, bytes_as<IAPIPodStatePlaybackEngineContentsPayload>(frame.payload));
+                PRINT("notify: track playback count {}", swap(resp.count));
+            } break;
+            case IAPIPodStateType_PlayStatus: {
+                unwrap(resp, bytes_as<IAPIPodStatePlayStatusPayload>(frame.payload));
+                PRINT("notify: playback status {}", swap(resp.status));
+            } break;
+            case IAPIPodStateType_Volume: {
+                unwrap(resp, bytes_as<IAPIPodStateVolumePayload>(frame.payload));
+                PRINT("notify: volume {} mute {}", resp.ui_volume, resp.mute_state);
+            } break;
+            case IAPIPodStateType_Power: {
+                unwrap(resp, bytes_as<IAPIPodStatePowerPayload>(frame.payload));
+                PRINT("notify: power {} battery {}", resp.power_state, resp.battery_level);
+            } break;
+            case IAPIPodStateType_ShuffleSetting: {
+                unwrap(resp, bytes_as<IAPIPodStateShuffleSettingPayload>(frame.payload));
+                PRINT("notify: shuffle {}", resp.shuffle_state);
+            } break;
+            case IAPIPodStateType_RepeatSetting: {
+                unwrap(resp, bytes_as<IAPIPodStateRepeatSettingPayload>(frame.payload));
+                PRINT("notify: repeat {}", resp.repeat_state);
+            } break;
+            case IAPIPodStateType_DateTimeSetting: {
+                unwrap(resp, bytes_as<IAPIPodStateDateTimeSettingPayload>(frame.payload));
+                PRINT("notify: datetime {}-{}-{} {}:{}", swap(resp.year), resp.month, resp.day, resp.hour, resp.day);
+            } break;
+            case IAPIPodStateType_HoldSwitchState: {
+                unwrap(resp, bytes_as<IAPIPodStateHoldSwitchStatePayload>(frame.payload));
+                PRINT("notify: holdswitch {}", resp.state);
+            } break;
+            case IAPIPodStateType_TrackTimePositionSec: {
+                unwrap(resp, bytes_as<IAPIPodStateTrackTimePositionSecPayload>(frame.payload));
+                PRINT("notify: track time position {}s", swap(resp.position_s));
+            } break;
+            default:
+                PRINT("unhandled notification type={}", resp.type);
+                break;
+            }
+            return true;
+        } break;
+        }
+        break;
     case IAPLingoID_ExtendedInterface:
         switch(frame.command) {
         case IAPExtendedInterfaceCommandID_IPodAck: {
-            unwrap(ack, (extract_payload<cmd(ExtendedInterface, IPodAck), IAPExtendedIPodAckPayload>(frame)));
+            unwrap(ack, bytes_as<IAPExtendedIPodAckPayload>(frame.payload));
             PRINT("extended ack command=0x{:04X} status=0x{:02X}", ack.id, ack.status);
             return true;
         } break;
         case IAPExtendedInterfaceCommandID_ReturnIndexedPlayingTrackInfo: {
-            unwrap(resp, (extract_payload<cmd(ExtendedInterface, ReturnIndexedPlayingTrackInfo), IAPExtendedRetIndexedPlayingTrackInfoPayload>(frame)));
+            unwrap(resp, bytes_as<IAPExtendedRetIndexedPlayingTrackInfoPayload>(frame.payload));
             switch(resp.type) {
             case IAPExtendedIndexedPlayingTrackInfoType_TrackReleaseDate: {
-                unwrap(resp, (extract_payload<cmd(ExtendedInterface, ReturnIndexedPlayingTrackInfo), IAPExtendedRetIndexedPlayingTrackInfoTrackReleaseDatePayload>(frame)));
+                unwrap(resp, bytes_as<IAPExtendedRetIndexedPlayingTrackInfoTrackReleaseDatePayload>(frame.payload));
                 PRINT("track release date {}-{}-{} {}:{}.{} week {}", swap(resp.year), resp.month, resp.day, resp.hours, resp.minutes, resp.seconds, resp.weekday);
                 return true;
             } break;
@@ -368,12 +425,12 @@ auto handle_frame(ParsedIAPFrame frame) -> bool {
             }
         } break;
         case IAPExtendedInterfaceCommandID_ReturnPlayStatus: {
-            unwrap(resp, (extract_payload<cmd(ExtendedInterface, ReturnPlayStatus), IAPExtendedRetPlayStatusPayload>(frame)));
+            unwrap(resp, bytes_as<IAPExtendedRetPlayStatusPayload>(frame.payload));
             PRINT("play status st={} pos={}/{}", resp.state, swap(resp.track_pos_ms), swap(resp.track_total_ms));
             return true;
         } break;
         case IAPExtendedInterfaceCommandID_ReturnCurrentPlayingTrackIndex: {
-            unwrap(resp, (extract_payload<cmd(ExtendedInterface, ReturnCurrentPlayingTrackIndex), IAPReturnCurrentPlayingTrackIndexPayload>(frame)));
+            unwrap(resp, bytes_as<IAPReturnCurrentPlayingTrackIndexPayload>(frame.payload));
             PRINT("track index {}", swap(resp.index));
             return true;
         } break;
@@ -393,7 +450,7 @@ auto handle_frame(ParsedIAPFrame frame) -> bool {
             return true;
         } break;
         case IAPExtendedInterfaceCommandID_ReturnNumPlayingTracks: {
-            unwrap(resp, (extract_payload<cmd(ExtendedInterface, ReturnNumPlayingTracks), IAPRetNumPlayingTracksPayload>(frame)));
+            unwrap(resp, bytes_as<IAPRetNumPlayingTracksPayload>(frame.payload));
             PRINT("track count {}", swap(resp.num_playing_tracks));
             return true;
         } break;
@@ -402,7 +459,7 @@ auto handle_frame(ParsedIAPFrame frame) -> bool {
     case IAPLingoID_DigitalAudio:
         switch(frame.command) {
         case IAPDigitalAudioCommandID_IPodAck: {
-            unwrap(ack, (extract_payload<cmd(DigitalAudio, IPodAck), IAPAckAccAuthSigPayload>(frame)));
+            unwrap(ack, bytes_as<IAPAckAccAuthSigPayload>(frame.payload));
             ensure(ack.status == IAPAckStatus_Success);
             return true;
         } break;
@@ -416,7 +473,7 @@ auto handle_frame(ParsedIAPFrame frame) -> bool {
             return true;
         } break;
         case IAPDigitalAudioCommandID_TrackNewAudioAttributes: {
-            unwrap(payload, (extract_payload<IAPLingoID_DigitalAudio, IAPDigitalAudioCommandID_TrackNewAudioAttributes, IAPTrackNewAudioAttributesPayload>(frame)));
+            unwrap(payload, bytes_as<IAPTrackNewAudioAttributesPayload>(frame.payload));
             PRINT("sample rate={}", swap(payload.sample_rate));
 
             ensure(start_audio(swap(payload.sample_rate)));
@@ -494,6 +551,31 @@ auto handle_stdin(const std::string_view input) -> bool {
             .chapter_index = 0,
         };
         ensure(send_command(cmd(ExtendedInterface, GetIndexedPlayingTrackInfo), &request, sizeof(request)));
+    } else if(elms[0] == "notify") { /* notify NAME */
+        ensure(elms.size() == 2);
+        static const auto table = make_pair_table<std::string_view, uint8_t>({
+            {"msec", IAPIPodStateType_TrackTimePositionMSec},
+            {"index", IAPIPodStateType_TrackPlaybackIndex},
+            {"count", IAPIPodStateType_PlaybackEngineContents},
+            {"status", IAPIPodStateType_PlayStatus},
+            {"volume", IAPIPodStateType_Volume},
+            {"power", IAPIPodStateType_Power},
+            {"shuffle", IAPIPodStateType_ShuffleSetting},
+            {"repeat", IAPIPodStateType_RepeatSetting},
+            {"date", IAPIPodStateType_DateTimeSetting},
+            {"hold", IAPIPodStateType_HoldSwitchState},
+            {"sec", IAPIPodStateType_TrackTimePositionSec},
+        });
+        unwrap(type, table.find(elms[1]), "invalid notification name {}", elms[1]);
+
+        static auto set = uint32_t(0);
+
+        const auto mask    = (1u << type);
+        set                = (set & mask) ? set & ~mask : set | mask;
+        const auto request = IAPSetRemoteEventNotificationPayload{
+            .mask = swap(set),
+        };
+        ensure(send_command(cmd(DisplayRemote, SetRemoteEventNotification), &request, sizeof(request)));
     } else {
         bail("invalid command {}", elms[0]);
     }
