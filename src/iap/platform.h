@@ -64,13 +64,22 @@ struct IAPPlatformTrackInfo {
     struct IAPSpan*     title;
 };
 
+/* iap_platform_open_artwork */
+struct IAPPlatformArtwork {
+    uint16_t  width;  /* user */
+    uint16_t  height; /* user */
+    IAPBool   color;  /* user */
+    IAPBool   valid;  /* library */
+    uintptr_t opaque; /* user */
+};
+
 /* library routines */
-void*   iap_platform_malloc(void* platform, size_t size, int flags);
-void    iap_platform_free(void* platform, void* ptr);
-int     iap_platform_send_hid_report(void* platform, const void* ptr, size_t size);
+void* iap_platform_malloc(void* platform, size_t size, int flags);
+void  iap_platform_free(void* platform, void* ptr);
+int   iap_platform_send_hid_report(void* platform, const void* ptr, size_t size);
 
 /* system info */
-IAPBool iap_platform_get_ipod_serial_num(void* platform, struct IAPSpan* serial);
+IAPBool                  iap_platform_get_ipod_serial_num(void* platform, struct IAPSpan* serial);
 enum IAPPlatformUSBSpeed iap_platform_get_usb_speed(void* platform);
 
 /* audio controls */
@@ -86,9 +95,9 @@ IAPBool iap_platform_get_date_time(void* platform, struct IAPDateTime* time);
 IAPBool iap_platform_get_backlight_level(void* platform, uint8_t* level);
 IAPBool iap_platform_get_hold_switch_state(void* platform, IAPBool* state);
 IAPBool iap_platform_get_indexed_track_info(void* platform, uint32_t index, struct IAPPlatformTrackInfo* info);
-IAPBool iap_platform_open_artwork(void* platform, uint32_t index, uintptr_t* handle);
-IAPBool iap_platform_get_artwork_ptr(void* platform, uintptr_t handle, struct IAPSpan* span);
-IAPBool iap_platform_close_artwork(void* platform, uintptr_t handle);
+IAPBool iap_platform_open_artwork(void* platform, uint32_t index, struct IAPPlatformArtwork* artwork);
+IAPBool iap_platform_get_artwork_ptr(void* platform, struct IAPPlatformArtwork* artwork, struct IAPSpan* span);
+IAPBool iap_platform_close_artwork(void* platform, struct IAPPlatformArtwork* artwork);
 
 /* other callbacks */
 IAPBool iap_platform_on_acc_samprs_received(void* platform, struct IAPSpan* samprs);
