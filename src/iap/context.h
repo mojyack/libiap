@@ -4,6 +4,7 @@
 
 #include "bool.h"
 #include "notification.h"
+#include "platform.h"
 
 struct IAPContext;
 struct IAPSpan;
@@ -28,16 +29,16 @@ struct IAPContext {
     IAPHandler handler_override;
     int32_t    handling_trans_id;
     /* iap.c */
-    uintptr_t artwork_handle;
-    size_t    artwork_cursor;
-    uint16_t  trans_id;
-    uint16_t  artwork_chunk_index;
-    int32_t   artwork_trans_id;
-    uint32_t  selected_sampr;
+    struct IAPPlatformArtwork artwork;
+    size_t                    artwork_cursor;
+    uint16_t                  trans_id;
+    uint16_t                  artwork_chunk_index;
+    int32_t                   artwork_trans_id;
+    uint32_t                  selected_sampr;
     /* notification.c */
     /* DisplayRemote::SetRemoteEventNotification */
-    uint32_t               enabled_notifications_3;
-    uint32_t               notifications_3;
+    uint32_t enabled_notifications_3;
+    uint32_t notifications_3;
     /* ExtendedInterface::SetPlayStatusChangeNotification */
     uint32_t enabled_notifications_4;
     uint32_t notifications_4;

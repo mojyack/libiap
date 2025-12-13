@@ -204,29 +204,32 @@ IAPBool iap_platform_get_indexed_track_info(void* platform, uint32_t index, stru
     return iap_true;
 }
 
-IAPBool iap_platform_open_artwork(void* platform, uint32_t index, uintptr_t* handle) {
+IAPBool iap_platform_open_artwork(void* platform, uint32_t index, struct IAPPlatformArtwork* artwork) {
     constexpr auto error_value = iap_false;
 
     const auto& ctx = ((struct LinuxPlatformData*)platform)->ctx;
     ensure_v(index < ctx.tracks.size());
     const auto& track = ctx.tracks[index];
 
-    *handle = (uintptr_t)decode_blob(track.cover, IAP_ARTWORK_WIDTH, IAP_ARTWORK_WIDTH);
-    ensure_v(*handle != 0);
+    artwork->opaque = (uintptr_t)decode_blob(track.cover, IAP_ARTWORK_WIDTH, IAP_ARTWORK_WIDTH);
+    ensure_v(artwork->opaque != 0);
+    artwork->color  = true;
+    artwork->width  = IAP_ARTWORK_WIDTH;
+    artwork->height = IAP_ARTWORK_HEIGHT;
 
     return iap_true;
 }
 
-IAPBool iap_platform_get_artwork_ptr(void* platform, uintptr_t handle, struct IAPSpan* span) {
+IAPBool iap_platform_get_artwork_ptr(void* platform, struct IAPPlatformArtwork* artwork, struct IAPSpan* span) {
     (void)platform;
-    span->ptr  = (uint8_t*)handle;
+    span->ptr  = (uint8_t*)artwork->opaque;
     span->size = IAP_ARTWORK_WIDTH * IAP_ARTWORK_HEIGHT * 2;
     return iap_true;
 }
 
-IAPBool iap_platform_close_artwork(void* platform, uintptr_t handle) {
+IAPBool iap_platform_close_artwork(void* platform, struct IAPPlatformArtwork* artwork) {
     (void)platform;
-    delete[](std::byte*)handle;
+    delete[](std::byte*)artwork->opaque;
     return iap_true;
 }
 

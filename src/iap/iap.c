@@ -26,7 +26,7 @@ IAPBool iap_init_ctx(struct IAPContext* ctx) {
     ctx->on_send_complete             = NULL;
     ctx->handler_override             = NULL;
     ctx->handling_trans_id            = -1;
-    ctx->artwork_handle               = 0;
+    ctx->artwork.valid                = iap_false;
     ctx->trans_id                     = 0;
     ctx->enabled_notifications_3      = 0;
     ctx->notifications_3              = 0;
@@ -42,8 +42,8 @@ IAPBool iap_init_ctx(struct IAPContext* ctx) {
 }
 
 IAPBool iap_deinit_ctx(struct IAPContext* ctx) {
-    if(ctx->artwork_handle != 0) {
-        iap_platform_close_artwork(ctx->platform, ctx->artwork_handle);
+    if(ctx->artwork.valid) {
+        iap_platform_close_artwork(ctx->platform, &ctx->artwork);
     }
     iap_platform_free(ctx->platform, ctx->hid_send_staging_buf);
     iap_platform_free(ctx->platform, ctx->hid_recv_buf);
@@ -242,21 +242,21 @@ static IAPBool send_artwork_chunk_cb(struct IAPContext* ctx) {
      * my acc does not accept fragmented hid reports?
      * or ipod-gadget kernel module problem?
      */
-#define SINGLE_REPORT_QUIRK iap_true
+#define SINGLE_REPORT_QUIRK iap_false
 
     struct IAPSpan request = _iap_get_buffer_for_send_payload(ctx);
     if(ctx->artwork_chunk_index == 0) {
         struct IAPRetTrackArtworkDataFirstPayload* payload = iap_span_alloc(&request, sizeof(*payload));
 
         payload->index                = swap_16(ctx->artwork_chunk_index);
-        payload->pixel_format         = IAP_COLOR_ARTWORK ? IAPArtworkPixelFormats_RGB565LE : IAPArtworkPixelFormats_Mono;
-        payload->pixel_width          = swap_16(IAP_ARTWORK_WIDTH);
-        payload->pixel_height         = swap_16(IAP_ARTWORK_HEIGHT);
+        payload->pixel_format         = ctx->artwork.color ? IAPArtworkPixelFormats_RGB565LE : IAPArtworkPixelFormats_Mono;
+        payload->pixel_width          = swap_16(ctx->artwork.width);
+        payload->pixel_height         = swap_16(ctx->artwork.height);
         payload->inset_top_left_x     = 0;
         payload->inset_top_left_y     = 0;
         payload->inset_bottom_right_x = payload->pixel_width;
         payload->inset_bottom_right_y = payload->pixel_height;
-        payload->stride               = swap_32(IAP_ARTWORK_WIDTH * 2); /* TODO: support stride */
+        payload->stride               = swap_32(ctx->artwork.width * 2); /* TODO: support stride */
     } else {
         struct IAPRetTrackArtworkDataSubsequenctPayload* payload = iap_span_alloc(&request, sizeof(*payload));
 
@@ -265,7 +265,7 @@ static IAPBool send_artwork_chunk_cb(struct IAPContext* ctx) {
     struct IAPSpan artwork;
     size_t         copy_size = 0;
     if(!SINGLE_REPORT_QUIRK || ctx->artwork_chunk_index != 0) {
-        check_ret(iap_platform_get_artwork_ptr(ctx->platform, ctx->artwork_handle, &artwork), iap_false);
+        check_ret(iap_platform_get_artwork_ptr(ctx->platform, &ctx->artwork, &artwork), iap_false);
         check_ret(iap_span_read(&artwork, ctx->artwork_cursor) != NULL, iap_false); /* skip already read chunk */
         copy_size = min((SINGLE_REPORT_QUIRK ? 48 : request.size), artwork.size);
         memcpy(iap_span_alloc(&request, copy_size), iap_span_read(&artwork, copy_size), copy_size);
@@ -276,10 +276,12 @@ static IAPBool send_artwork_chunk_cb(struct IAPContext* ctx) {
         ctx->artwork_cursor += copy_size;
         ctx->artwork_chunk_index += 1;
         ctx->on_send_complete = send_artwork_chunk_cb;
+        print("track artwork left %lu bytes", artwork.size);
     } else {
         /* finished, free artwork */
-        check_ret(iap_platform_close_artwork(ctx->platform, ctx->artwork_handle), iap_false);
-        ctx->artwork_handle = 0;
+        check_ret(iap_platform_close_artwork(ctx->platform, &ctx->artwork), iap_false);
+        ctx->artwork.valid = iap_false;
+        print("track artwork done");
     }
     return iap_true;
 }
@@ -570,10 +572,10 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
             check_ret(request_payload->format_id == 0, -IAPAckStatus_EBadParameter);
             check_ret(request_payload->offset_ms == 0, -IAPAckStatus_EBadParameter);
+            check_ret(!ctx->artwork.valid, -IAPAckStatus_EBadParameter);
 
-            uintptr_t handle;
-            check_ret(iap_platform_open_artwork(ctx->platform, swap_32(request_payload->track_index), &handle), -IAPAckStatus_EBadParameter);
-            ctx->artwork_handle      = handle;
+            check_ret(iap_platform_open_artwork(ctx->platform, swap_32(request_payload->track_index), &ctx->artwork), -IAPAckStatus_EBadParameter);
+            ctx->artwork.valid       = iap_true;
             ctx->artwork_cursor      = 0;
             ctx->artwork_chunk_index = 0;
             ctx->artwork_trans_id    = ctx->handling_trans_id;
