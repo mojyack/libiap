@@ -42,12 +42,17 @@ auto handle_stdin(const std::string_view input) -> bool {
         ensure(platform.ctx.skip_track(1));
     } else if(elms[0] == "prev") {
         ensure(platform.ctx.skip_track(-1));
+    } else if(elms[0] == "pause") {
+        ensure(platform.ctx.set_state(PlayState::Paused));
+    } else if(elms[0] == "play") {
+        ensure(platform.ctx.set_state(PlayState::Playing));
+    } else if(elms[0] == "stop") {
+        ensure(platform.ctx.set_state(PlayState::Stopped));
     } else {
         bail("invalid command {}", elms[0]);
     }
     return true;
 }
-
 } // namespace
 
 auto Context::set_state(const PlayState new_state) -> bool {
