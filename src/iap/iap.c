@@ -598,7 +598,6 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
         case IAPExtendedInterfaceCommandID_GetNumberCategorizedDBRecords: {
             const struct IAPGetNumberCategorizedDBRecordsPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
-            print("get db records type=0x%02X", request_payload->type);
 
             uint32_t count;
             if(request_payload->type == IAPDatabaseType_Track) {
@@ -607,9 +606,10 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
                 alloc_response(IAPRetNumPlayingTracksPayload, payload);
                 count = status.state == IAPIPodStatePlayStatus_PlaybackStopped ? 0 : status.track_count;
             } else {
-                warn("unsupported type");
+                warn("unsupported type 0x%02X", request_payload->type);
                 count = 0;
             }
+            print("get db records type=0x%02X count=%u", request_payload->type, count);
 
             alloc_response(IAPReturnNumberCategorizedDBRecordsPayload, payload);
             payload->count = swap_32(count);

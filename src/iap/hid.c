@@ -102,7 +102,6 @@ IAPBool iap_feed_hid_report(struct IAPContext* ctx, const uint8_t* const data, c
 }
 
 IAPBool iap_notify_send_complete(struct IAPContext* ctx) {
-    print("transmission complete");
     ctx->send_busy = iap_false;
     check_ret(_iap_send_next_report(ctx), iap_false);
     return iap_true;
