@@ -4,9 +4,6 @@
 #include "span.h"
 #include "spec/iap.h"
 
-#undef print
-#define print(...)
-
 #define pack_accepted(Ack)                                          \
     struct Ack* const ack = iap_span_alloc(response, sizeof(*ack)); \
     check_ret(ack != NULL, -IAPAckStatus_EOutOfResource);           \
@@ -144,7 +141,7 @@ int _iap_hanlde_set_fid_token_values(struct IAPSpan* request, struct IAPSpan* re
             while(token_span.size > 0) {
                 uint32_t rate;
                 check_ret(iap_span_read_32(&token_span, &rate), -IAPAckStatus_EBadParameter);
-                IAP_LOGF("  %u", rate);
+                IAP_LOGF("  %lu", rate);
             }
             pack_accepted(IAPFIDTokenValuesAccDigitalAudioSampleRatesAck);
         } break;

@@ -144,7 +144,7 @@ IAPBool _iap_send_next_report(struct IAPContext* ctx) {
 
     const size_t                   send_buf_left = ctx->send_buf_sending_range_end - ctx->send_buf_sending_cursor;
     const struct ReportSize* const report_size   = find_optimal_report_size(ctx, send_buf_left);
-    const size_t                   take_size     = min(report_size->size - 1 /* link control */, send_buf_left);
+    const size_t                   take_size     = min((size_t)report_size->size - 1 /* link control */, send_buf_left);
 
     struct IAPHIDReport* const report = (struct IAPHIDReport*)ctx->hid_send_staging_buf;
 
