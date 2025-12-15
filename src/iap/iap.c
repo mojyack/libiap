@@ -138,7 +138,7 @@ static int32_t start_artwork_data(struct IAPContext* ctx, struct IAPSpan* reques
     ctx->artwork_trans_id    = ctx->handling_trans_id;
     if(ext) {
         ctx->artwork_data_lingo   = IAPLingoID_ExtendedInterface;
-        ctx->artwork_data_command = IAPExtendedInterfaceCommandID_GetTrackArtworkData;
+        ctx->artwork_data_command = IAPExtendedInterfaceCommandID_RetTrackArtworkData;
     } else {
         ctx->artwork_data_lingo   = IAPLingoID_DisplayRemote;
         ctx->artwork_data_command = IAPDisplayRemoteCommandID_RetTrackArtworkData;
