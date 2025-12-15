@@ -119,7 +119,8 @@ auto main(const int argc, const char* const* argv) -> int {
     iap_ctx = IAPContext{
         .platform = &platform,
         .opts     = {
-                .ignore_hid_report_id = 1,
+                .ignore_hid_report_id  = 1,
+                .artwork_single_report = iap_platform_get_usb_speed(nullptr) == IAPPlatformUSBSpeed_Full,
         },
     };
     ensure(iap_init_ctx(&iap_ctx));

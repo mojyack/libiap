@@ -82,14 +82,6 @@ static uint32_t play_stage_change_notification_set_mask_to_type_mask(uint32_t ma
 }
 
 static IAPBool send_artwork_chunk_cb(struct IAPContext* ctx) {
-    /*
-     * FIXME: while sending many large reports, like artwork chunks, write(fd, ...) stucks at some point.
-     * limit packet size as a workaround.
-     * my acc does not accept fragmented hid reports?
-     * or ipod-gadget kernel module problem?
-     */
-#define SINGLE_REPORT_QUIRK iap_false
-
     struct IAPSpan request = _iap_get_buffer_for_send_payload(ctx);
     if(ctx->artwork_chunk_index == 0) {
         struct IAPRetTrackArtworkDataFirstPayload* payload = iap_span_alloc(&request, sizeof(*payload));
@@ -110,10 +102,10 @@ static IAPBool send_artwork_chunk_cb(struct IAPContext* ctx) {
     }
     struct IAPSpan artwork;
     size_t         copy_size = 0;
-    if(!SINGLE_REPORT_QUIRK || ctx->artwork_chunk_index != 0) {
+    if(!ctx->opts.artwork_single_report || ctx->artwork_chunk_index != 0) {
         check_ret(iap_platform_get_artwork_ptr(ctx->platform, &ctx->artwork, &artwork), iap_false);
         check_ret(iap_span_read(&artwork, ctx->artwork_cursor) != NULL, iap_false); /* skip already read chunk */
-        copy_size = min((SINGLE_REPORT_QUIRK ? 48 : request.size), artwork.size);
+        copy_size = min((ctx->opts.artwork_single_report ? 48 : request.size), artwork.size);
         memcpy(iap_span_alloc(&request, copy_size), iap_span_read(&artwork, copy_size), copy_size);
     }
     check_ret(_iap_send_packet(ctx, ctx->artwork_data_lingo, ctx->artwork_data_command, ctx->artwork_trans_id, request.ptr), iap_false);

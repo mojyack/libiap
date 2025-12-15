@@ -14,6 +14,8 @@ typedef IAPBool (*IAPOnSendComplete)(struct IAPContext* ctx);
 struct IAPOpts {
     /* needed to support some accessories which don't set correct hid report id */
     IAPBool ignore_hid_report_id : 1;
+    /* limit packet size while sending artworks for stability */
+    IAPBool artwork_single_report : 1;
 };
 
 struct IAPContext {
