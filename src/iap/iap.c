@@ -605,7 +605,7 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
                 struct IAPPlatformPlayStatus status;
                 check_ret(iap_platform_get_play_status(ctx->platform, &status), -IAPAckStatus_ECommandFailed);
                 alloc_response(IAPRetNumPlayingTracksPayload, payload);
-                count = status.track_count;
+                count = status.state == IAPIPodStatePlayStatus_PlaybackStopped ? 0 : status.track_count;
             } else {
                 warn("unsupported type");
                 count = 0;
