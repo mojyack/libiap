@@ -714,7 +714,7 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
                 }
             }
             if(control >= 0) {
-                check_ret(iap_platform_control(ctx->platform, control), -IAPAckStatus_ECommandFailed);
+                check_ret(iap_platform_control(ctx->platform, control), -IAPAckStatus_ECommandFailed, "control 0x%02X failed", request_payload->code);
             }
 
             alloc_response(IAPExtendedIPodAckPayload, payload);
@@ -894,7 +894,7 @@ static int32_t handle_in_auth(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             const struct IAPRetAccAuthInfoPayload2p0* request_payload = iap_span_read(request, sizeof(*request_payload));
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
             print("accessory cert %u/%u", request_payload->cert_current_section_index, request_payload->cert_max_section_index);
-            iap_platform_dump_hex(request->ptr, request->size);
+            /* iap_platform_dump_hex(request->ptr, request->size); */
             if(request_payload->cert_current_section_index < request_payload->cert_max_section_index) {
                 alloc_response(IAPIPodAckPayload, payload);
                 payload->status = IAPAckStatus_Success;
@@ -910,7 +910,7 @@ static int32_t handle_in_auth(struct IAPContext* ctx, uint8_t lingo, uint16_t co
         } break;
         case IAPGeneralCommandID_RetAccessoryAuthenticationSignature: {
             print("accessory signature");
-            iap_platform_dump_hex(request->ptr, request->size);
+            /* iap_platform_dump_hex(request->ptr, request->size); */
 
             alloc_response(IAPAckAccAuthSigPayload, payload);
             payload->status = IAPAckStatus_Success;
