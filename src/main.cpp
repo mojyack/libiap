@@ -116,7 +116,12 @@ auto main(const int argc, const char* const* argv) -> int {
         .iap_ctx = &iap_ctx,
     };
     ensure(platform.fd >= 0);
-    iap_ctx = IAPContext{.platform = &platform};
+    iap_ctx = IAPContext{
+        .platform = &platform,
+        .opts     = {
+                .ignore_hid_report_id = 1,
+        },
+    };
     ensure(iap_init_ctx(&iap_ctx));
 
     auto& ctx = platform.ctx;

@@ -12,8 +12,15 @@ struct IAPSpan;
 typedef IAPBool (*IAPOnSendComplete)(struct IAPContext* ctx);
 typedef int32_t (*IAPHandler)(struct IAPContext* ctx, uint8_t lingo, uint16_t command, struct IAPSpan* request, struct IAPSpan* response);
 
+struct IAPOpts {
+    /* needed to support some accessories which don't set correct hid report id */
+    IAPBool ignore_hid_report_id : 1;
+};
+
 struct IAPContext {
-    void* platform; /* opaque to platform functions */
+    /* set by user */
+    void*          platform; /* opaque to platform functions */
+    struct IAPOpts opts;     /* options */
 
     /* iap_feed_hid_report */
     uint8_t* hid_recv_buf;

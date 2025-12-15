@@ -71,8 +71,13 @@ IAPBool iap_feed_hid_report(struct IAPContext* ctx, const uint8_t* const data, c
     check_ret(size > sizeof(struct IAPHIDReport), iap_false);
     struct IAPHIDReport* report = (struct IAPHIDReport*)data;
 
-    const int report_size = find_output_report_size(ctx, report->report_id);
-    check_ret(report_size == (int)size - 1, iap_false);
+    int report_size;
+    if(ctx->opts.ignore_hid_report_id) {
+        report_size = size - 1;
+    } else {
+        report_size = find_output_report_size(ctx, report->report_id);
+        check_ret(report_size == (int)size - 1, iap_false, "%d != %d", report_size, (int)size - 1);
+    }
 
     const uint8_t payload_size = report_size - 1;
     check_act(ctx->hid_recv_buf_cursor + payload_size <= HID_BUFFER_SIZE, { ctx->hid_recv_buf_cursor = 0; return iap_false; }, "hid buffer overflow");
