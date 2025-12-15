@@ -204,6 +204,15 @@ IAPBool iap_platform_get_indexed_track_info(void* platform, uint32_t index, stru
     return iap_true;
 }
 
+IAPBool iap_platform_set_playing_track(void* platform, uint32_t index) {
+    constexpr auto error_value = iap_false;
+
+    auto& ctx = ((struct LinuxPlatformData*)platform)->ctx;
+    ensure_v(ctx.skip_track(int(index) - ctx.current_track));
+
+    return iap_true;
+}
+
 IAPBool iap_platform_open_artwork(void* platform, uint32_t index, struct IAPPlatformArtwork* artwork) {
     constexpr auto error_value = iap_false;
 

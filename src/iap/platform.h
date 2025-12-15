@@ -95,6 +95,7 @@ IAPBool iap_platform_get_date_time(void* platform, struct IAPDateTime* time);
 IAPBool iap_platform_get_backlight_level(void* platform, uint8_t* level);
 IAPBool iap_platform_get_hold_switch_state(void* platform, IAPBool* state);
 IAPBool iap_platform_get_indexed_track_info(void* platform, uint32_t index, struct IAPPlatformTrackInfo* info);
+IAPBool iap_platform_set_playing_track(void* platform, uint32_t index);
 IAPBool iap_platform_open_artwork(void* platform, uint32_t index, struct IAPPlatformArtwork* artwork);
 IAPBool iap_platform_get_artwork_ptr(void* platform, struct IAPPlatformArtwork* artwork, struct IAPSpan* span);
 IAPBool iap_platform_close_artwork(void* platform, struct IAPPlatformArtwork* artwork);

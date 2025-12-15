@@ -10,7 +10,6 @@ struct IAPContext;
 struct IAPSpan;
 
 typedef IAPBool (*IAPOnSendComplete)(struct IAPContext* ctx);
-typedef int32_t (*IAPHandler)(struct IAPContext* ctx, uint8_t lingo, uint16_t command, struct IAPSpan* request, struct IAPSpan* response);
 
 struct IAPOpts {
     /* needed to support some accessories which don't set correct hid report id */
@@ -33,14 +32,15 @@ struct IAPContext {
     /* _iap_send_next_report */
     IAPOnSendComplete on_send_complete;
     /* _iap_feed_packet */
-    IAPHandler handler_override;
-    int32_t    handling_trans_id;
+    int32_t handling_trans_id;
     /* iap.c */
     struct IAPPlatformArtwork artwork;
     size_t                    artwork_cursor;
     uint16_t                  trans_id;
     uint16_t                  artwork_chunk_index;
     int32_t                   artwork_trans_id;
+    uint8_t                   artwork_data_lingo;
+    uint16_t                  artwork_data_command;
     uint32_t                  selected_sampr;
     /* notification.c */
     /* DisplayRemote::SetRemoteEventNotification */

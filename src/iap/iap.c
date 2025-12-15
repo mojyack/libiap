@@ -24,7 +24,6 @@ IAPBool iap_init_ctx(struct IAPContext* ctx) {
     ctx->send_buf_sending_range_begin = 0;
     ctx->send_buf_sending_range_end   = 0;
     ctx->on_send_complete             = NULL;
-    ctx->handler_override             = NULL;
     ctx->handling_trans_id            = -1;
     ctx->artwork.valid                = iap_false;
     ctx->trans_id                     = 0;
@@ -57,182 +56,29 @@ IAPBool iap_deinit_ctx(struct IAPContext* ctx) {
 
 #define alloc_response(Type, var) alloc_response_extra(Type, var, 0)
 
-static int32_t handle_in_connected(struct IAPContext* ctx, uint8_t lingo, uint16_t command, struct IAPSpan* request, struct IAPSpan* response) {
-    switch(lingo) {
-    case IAPLingoID_General:
-        switch(command) {
-        case IAPGeneralCommandID_StartIDPS: {
-            alloc_response(IAPIPodAckPayload, payload);
-            payload->status = IAPAckStatus_Success;
-            payload->id     = command;
-
-            ctx->phase = IAPPhase_IDPS;
-            print("idps started");
-
-            return IAPGeneralCommandID_IPodAck;
-        } break;
-        }
-        break;
+static uint32_t play_stage_change_notification_set_mask_to_type_mask(uint32_t mask) {
+    uint32_t ret = 0;
+    if(mask & IAPStatusChangeNotificationBits_Basic) {
+        ret |= 1 << IAPStatusChangeNotificationType_PlaybackStopped |
+               1 << IAPStatusChangeNotificationType_PlaybackFEWSeekStop |
+               1 << IAPStatusChangeNotificationType_PlaybackREWSeekStop;
     }
-    return -IAPAckStatus_EUnknownID;
-}
-
-static IAPBool transition_idps_to_auth_cb(struct IAPContext* ctx) {
-    print("starting accessory authentication");
-    check_ret(ctx->phase == IAPPhase_IDPS, iap_false);
-    ctx->phase = IAPPhase_Auth;
-    check_ret(_iap_send_packet(ctx, IAPLingoID_General, IAPGeneralCommandID_GetAccessoryAuthenticationInfo, (ctx->trans_id += 1), _iap_get_buffer_for_send_payload(ctx).ptr), iap_false);
-    return iap_true;
-}
-
-static int32_t handle_in_idps(struct IAPContext* ctx, uint8_t lingo, uint16_t command, struct IAPSpan* request, struct IAPSpan* response) {
-    switch(lingo) {
-    case IAPLingoID_General:
-        switch(command) {
-        case IAPGeneralCommandID_RequestTransportMaxPayloadSize: {
-            alloc_response(IAPReturnTransportMaxPayloadSizePayload, payload);
-            payload->max_payload_size = swap_16(HID_BUFFER_SIZE - 1 /*sync*/ - 1 /*sof*/ - 3 /*length*/ - 1 /*checksum*/);
-            return IAPGeneralCommandID_ReturnTransportMaxPayloadSize;
-        } break;
-        case IAPGeneralCommandID_IdentifyDeviceLingoes: {
-            const struct IAPIdentifyDeviceLingoesPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
-            check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
-
-            const uint32_t bits = swap_32(request_payload->lingoes_bits);
-            print("acc supported lingos:");
-            for(int i = 0; i < 32; i += 1) {
-                if(bits & (1 << i)) {
-                    IAP_LOGF("  %s", _iap_lingo_str(i));
-                }
-            }
-            print("auth_option=%02X device_id=%08X\n", swap_32(request_payload->options), swap_32(request_payload->device_id));
-
-            alloc_response(IAPIPodAckPayload, payload);
-            payload->status = IAPAckStatus_Success;
-            payload->id     = command;
-            /* TODO: wip */
-            return IAPGeneralCommandID_IPodAck;
-        } break;
-        case IAPGeneralCommandID_SetFIDTokenValues: {
-            const int ret = _iap_hanlde_set_fid_token_values(request, response);
-            check_ret(ret == 0, ret);
-            return IAPGeneralCommandID_AckFIDTokenValues;
-        } break;
-        case IAPGeneralCommandID_EndIDPS: {
-            const struct IAPEndIDPSPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
-            check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
-            print("end idps status=0x%02X", request_payload->status);
-            check_ret(request_payload->status == IAPEndIDPSStatus_Success, -IAPAckStatus_ECommandFailed);
-
-            ctx->on_send_complete = transition_idps_to_auth_cb;
-
-            alloc_response(IAPIDPSStatusPayload, payload);
-            payload->status = IAPIDPSStatus_Success;
-            return IAPGeneralCommandID_IDPSStatus;
-        } break;
-        case IAPGeneralCommandID_GetIPodOptionsForLingo: {
-            const struct IAPGetIPodOptionsForLingoPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
-            check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
-
-            alloc_response(IAPRetIPodOptionsForLingoPayload, payload);
-            payload->lingo_id = request_payload->lingo_id;
-            print("ipod option for %d", request_payload->lingo_id);
-            switch(request_payload->lingo_id) {
-            case IAPLingoID_SimpleRemote:
-                payload->bits = swap_64(IAPRetIPodOptionsForLingoSimpleRemoteBits_ContextSpecificControls);
-                break;
-            case IAPLingoID_General:
-            case IAPLingoID_DisplayRemote:
-            case IAPLingoID_ExtendedInterface:
-            case IAPLingoID_DigitalAudio:
-            case IAPLingoID_Storage: /* TODO: this is not supported */
-                payload->bits = 0;
-                break;
-            case IAPLingoID_USBHostMode:
-            case IAPLingoID_RFTuner:
-            case IAPLingoID_Sports:
-            case IAPLingoID_IPodOut:
-            case IAPLingoID_Location: { /* not supported */
-                return -IAPAckStatus_EBadParameter;
-            }
-            }
-            return IAPGeneralCommandID_RetIPodOptionsForLingo;
-        } break;
-        }
-        break;
+    if(mask & IAPStatusChangeNotificationBits_Extended) {
+        ret |= 1 << IAPStatusChangeNotificationType_PlaybackStatusExtended;
     }
-    return iap_false;
-}
-
-static IAPBool send_auth_challenge_sig_cb(struct IAPContext* ctx) {
-    check_ret(ctx->phase == IAPPhase_Auth, iap_false);
-    struct IAPSpan                     request = _iap_get_buffer_for_send_payload(ctx);
-    struct IAPGetAccAuthSigPayload2p0* payload = iap_span_alloc(&request, sizeof(*payload));
-    check_ret(payload != NULL, iap_false);
-    payload->retry = 1;
-    check_ret(_iap_send_packet(ctx, IAPLingoID_General, IAPGeneralCommandID_GetAccessoryAuthenticationSignature, (ctx->trans_id += 1), request.ptr), iap_false);
-    return iap_true;
-}
-
-static IAPBool send_sample_rate_caps_cb(struct IAPContext* ctx) {
-    struct IAPSpan request = _iap_get_buffer_for_send_payload(ctx);
-    check_ret(_iap_send_packet(ctx, IAPLingoID_DigitalAudio, IAPDigitalAudioCommandID_GetAccessorySampleRateCaps, (ctx->trans_id += 1), request.ptr), iap_false);
-    return iap_true;
-}
-
-static int32_t handle_in_auth(struct IAPContext* ctx, uint8_t lingo, uint16_t command, struct IAPSpan* request, struct IAPSpan* response) {
-    switch(lingo) {
-    case IAPLingoID_General:
-        switch(command) {
-        case IAPGeneralCommandID_RetAccessoryAuthenticationInfo: {
-            const struct IAPRetAccAuthInfoPayload2p0* request_payload = iap_span_read(request, sizeof(*request_payload));
-            check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
-            print("accessory cert %u/%u", request_payload->cert_current_section_index, request_payload->cert_max_section_index);
-            iap_platform_dump_hex(request->ptr, request->size);
-            if(request_payload->cert_current_section_index < request_payload->cert_max_section_index) {
-                alloc_response(IAPIPodAckPayload, payload);
-                payload->status = IAPAckStatus_Success;
-                payload->id     = command;
-                return IAPGeneralCommandID_IPodAck;
-            } else {
-                ctx->on_send_complete = send_auth_challenge_sig_cb;
-
-                alloc_response(IAPAckAccAuthInfoPayload, payload);
-                payload->status = IAPAckAccAuthInfoStatus_Supported;
-                return IAPGeneralCommandID_AckAccessoryAuthenticationInfo;
-            }
-        } break;
-        case IAPGeneralCommandID_RetAccessoryAuthenticationSignature: {
-            print("accessory signature");
-            iap_platform_dump_hex(request->ptr, request->size);
-
-            alloc_response(IAPAckAccAuthSigPayload, payload);
-            payload->status = IAPAckStatus_Success;
-
-            ctx->phase            = IAPPhase_Authed;
-            ctx->on_send_complete = send_sample_rate_caps_cb;
-
-            return IAPGeneralCommandID_AckAccessoryAuthenticationStatus;
-        } break;
-        case IAPGeneralCommandID_SetEventNotification: {
-            const struct IAPSetEventNotificationPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
-            check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
-            print("event notification %lX", swap_64(request_payload->mask));
-
-            alloc_response(IAPIPodAckPayload, payload);
-            payload->status = IAPAckStatus_Success;
-            payload->id     = command;
-            return IAPGeneralCommandID_IPodAck;
-        } break;
-        case IAPGeneralCommandID_GetSupportedEventNotification: {
-            alloc_response(IAPRetSupportedEventNotificationPayload, payload);
-            payload->mask = swap_64(IAPSetEventNotificationEvents_FlowControl);
-            return IAPGeneralCommandID_RetSupportedEventNotification;
-        } break;
-        }
-        break;
+    if(mask & IAPStatusChangeNotificationBits_TrackIndex) {
+        ret |= 1 << IAPStatusChangeNotificationType_TrackIndex;
     }
-    return -IAPAckStatus_EUnknownID;
+    if(mask & IAPStatusChangeNotificationBits_TrackTimeOffsetMSec) {
+        ret |= 1 << IAPStatusChangeNotificationType_TrackTimeOffsetMSec;
+    }
+    if(mask & IAPStatusChangeNotificationBits_TrackTimeOffsetSec) {
+        ret |= 1 << IAPStatusChangeNotificationType_TrackTimeOffsetSec;
+    }
+    if(mask & IAPStatusChangeNotificationBits_PlaybackEngineContentsChanged) {
+        ret |= 1 << IAPStatusChangeNotificationType_PlaybackEngineContentsChanged;
+    }
+    return ret;
 }
 
 static IAPBool send_artwork_chunk_cb(struct IAPContext* ctx) {
@@ -270,7 +116,7 @@ static IAPBool send_artwork_chunk_cb(struct IAPContext* ctx) {
         copy_size = min((SINGLE_REPORT_QUIRK ? 48 : request.size), artwork.size);
         memcpy(iap_span_alloc(&request, copy_size), iap_span_read(&artwork, copy_size), copy_size);
     }
-    check_ret(_iap_send_packet(ctx, IAPLingoID_DisplayRemote, IAPDisplayRemoteCommandID_RetTrackArtworkData, ctx->artwork_trans_id, request.ptr), iap_false);
+    check_ret(_iap_send_packet(ctx, ctx->artwork_data_lingo, ctx->artwork_data_command, ctx->artwork_trans_id, request.ptr), iap_false);
     if(artwork.size > 0) {
         /* more to send, ask to call again */
         ctx->artwork_cursor += copy_size;
@@ -286,32 +132,30 @@ static IAPBool send_artwork_chunk_cb(struct IAPContext* ctx) {
     return iap_true;
 }
 
-static uint32_t play_stage_change_notification_set_mask_to_type_mask(uint32_t mask) {
-    uint32_t ret = 0;
-    if(mask & IAPStatusChangeNotificationBits_Basic) {
-        ret |= 1 << IAPStatusChangeNotificationType_PlaybackStopped |
-               1 << IAPStatusChangeNotificationType_PlaybackFEWSeekStop |
-               1 << IAPStatusChangeNotificationType_PlaybackREWSeekStop;
+static int32_t start_artwork_data(struct IAPContext* ctx, struct IAPSpan* request, IAPBool ext) {
+    const struct IAPGetTrackArtworkDataPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
+    check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
+    check_ret(request_payload->format_id == 0, -IAPAckStatus_EBadParameter);
+    check_ret(request_payload->offset_ms == 0, -IAPAckStatus_EBadParameter);
+    check_ret(!ctx->artwork.valid, -IAPAckStatus_EBadParameter);
+
+    check_ret(iap_platform_open_artwork(ctx->platform, swap_32(request_payload->track_index), &ctx->artwork), -IAPAckStatus_EBadParameter);
+    ctx->artwork.valid       = iap_true;
+    ctx->artwork_cursor      = 0;
+    ctx->artwork_chunk_index = 0;
+    ctx->artwork_trans_id    = ctx->handling_trans_id;
+    if(ext) {
+        ctx->artwork_data_lingo   = IAPLingoID_ExtendedInterface;
+        ctx->artwork_data_command = IAPExtendedInterfaceCommandID_GetTrackArtworkData;
+    } else {
+        ctx->artwork_data_lingo   = IAPLingoID_DisplayRemote;
+        ctx->artwork_data_command = IAPDisplayRemoteCommandID_RetTrackArtworkData;
     }
-    if(mask & IAPStatusChangeNotificationBits_Extended) {
-        ret |= 1 << IAPStatusChangeNotificationType_PlaybackStatusExtended;
-    }
-    if(mask & IAPStatusChangeNotificationBits_TrackIndex) {
-        ret |= 1 << IAPStatusChangeNotificationType_TrackIndex;
-    }
-    if(mask & IAPStatusChangeNotificationBits_TrackTimeOffsetMSec) {
-        ret |= 1 << IAPStatusChangeNotificationType_TrackTimeOffsetMSec;
-    }
-    if(mask & IAPStatusChangeNotificationBits_TrackTimeOffsetSec) {
-        ret |= 1 << IAPStatusChangeNotificationType_TrackTimeOffsetSec;
-    }
-    if(mask & IAPStatusChangeNotificationBits_PlaybackEngineContentsChanged) {
-        ret |= 1 << IAPStatusChangeNotificationType_PlaybackEngineContentsChanged;
-    }
-    return ret;
+    check_ret(send_artwork_chunk_cb(ctx), -IAPAckStatus_ECommandFailed);
+    return 0;
 }
 
-static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t command, struct IAPSpan* request, struct IAPSpan* response) {
+static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t command, struct IAPSpan* request, struct IAPSpan* response) {
     switch(lingo) {
     case IAPLingoID_General:
         switch(command) {
@@ -319,10 +163,69 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
             check_ret(iap_platform_get_ipod_serial_num(ctx->platform, response), -IAPAckStatus_ECommandFailed);
             return IAPGeneralCommandID_ReturnIPodSerialNum;
         } break;
+        case IAPGeneralCommandID_RequestTransportMaxPayloadSize: {
+            alloc_response(IAPReturnTransportMaxPayloadSizePayload, payload);
+            payload->max_payload_size = swap_16(HID_BUFFER_SIZE - 1 /*sync*/ - 1 /*sof*/ - 3 /*length*/ - 1 /*checksum*/);
+            return IAPGeneralCommandID_ReturnTransportMaxPayloadSize;
+        } break;
         case IAPGeneralCommandID_SetUIMode: {
             const struct IAPSetUIModePayload* request_payload = iap_span_read(request, sizeof(*request_payload));
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
             print("set ui mode 0x%02X", request_payload->ui_mode);
+
+            alloc_response(IAPIPodAckPayload, payload);
+            payload->status = IAPAckStatus_Success;
+            payload->id     = command;
+            return IAPGeneralCommandID_IPodAck;
+        } break;
+        case IAPGeneralCommandID_GetIPodOptionsForLingo: {
+            const struct IAPGetIPodOptionsForLingoPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
+            check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
+
+            alloc_response(IAPRetIPodOptionsForLingoPayload, payload);
+            payload->lingo_id = request_payload->lingo_id;
+            print("ipod option for %d", request_payload->lingo_id);
+            switch(request_payload->lingo_id) {
+            case IAPLingoID_SimpleRemote:
+                payload->bits = swap_64(IAPRetIPodOptionsForLingoSimpleRemoteBits_ContextSpecificControls);
+                break;
+            case IAPLingoID_General:
+            case IAPLingoID_DisplayRemote:
+            case IAPLingoID_ExtendedInterface:
+            case IAPLingoID_DigitalAudio:
+            case IAPLingoID_Storage: /* TODO: this is not supported */
+                payload->bits = 0;
+                break;
+            case IAPLingoID_USBHostMode:
+            case IAPLingoID_RFTuner:
+            case IAPLingoID_Sports:
+            case IAPLingoID_IPodOut:
+            case IAPLingoID_Location: { /* not supported */
+                return -IAPAckStatus_EBadParameter;
+            }
+            }
+            return IAPGeneralCommandID_RetIPodOptionsForLingo;
+        } break;
+        case IAPGeneralCommandID_GetSupportedEventNotification: {
+            alloc_response(IAPRetSupportedEventNotificationPayload, payload);
+            payload->mask = swap_64(IAPSetEventNotificationEvents_FlowControl);
+            return IAPGeneralCommandID_RetSupportedEventNotification;
+        } break;
+        case IAPGeneralCommandID_SetAvailableCurrent: {
+            const struct IAPSetAvailableCurrentPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
+            check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
+
+            print("available current %u", swap_16(request_payload->current_limit_ma));
+
+            alloc_response(IAPIPodAckPayload, payload);
+            payload->status = IAPAckStatus_Success;
+            payload->id     = command;
+            return IAPGeneralCommandID_IPodAck;
+        } break;
+        case IAPGeneralCommandID_SetEventNotification: {
+            const struct IAPSetEventNotificationPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
+            check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
+            print("event notification %lX", swap_64(request_payload->mask));
 
             alloc_response(IAPIPodAckPayload, payload);
             payload->status = IAPAckStatus_Success;
@@ -568,18 +471,8 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
             return IAPDisplayRemoteCommandID_RetArtworkFormats;
         } break;
         case IAPDisplayRemoteCommandID_GetTrackArtworkData: {
-            const struct IAPGetTrackArtworkDataPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
-            check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
-            check_ret(request_payload->format_id == 0, -IAPAckStatus_EBadParameter);
-            check_ret(request_payload->offset_ms == 0, -IAPAckStatus_EBadParameter);
-            check_ret(!ctx->artwork.valid, -IAPAckStatus_EBadParameter);
-
-            check_ret(iap_platform_open_artwork(ctx->platform, swap_32(request_payload->track_index), &ctx->artwork), -IAPAckStatus_EBadParameter);
-            ctx->artwork.valid       = iap_true;
-            ctx->artwork_cursor      = 0;
-            ctx->artwork_chunk_index = 0;
-            ctx->artwork_trans_id    = ctx->handling_trans_id;
-            check_ret(send_artwork_chunk_cb(ctx), -IAPAckStatus_ECommandFailed);
+            const int32_t ret = start_artwork_data(ctx, request, iap_false);
+            check_ret(ret == 0, ret);
             /* responded in send_artwork_chunk_cb, no need to do it here */
             response->ptr = NULL;
             return 0;
@@ -690,12 +583,45 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
                 return -IAPAckStatus_EBadParameter;
             }
         } break;
+        case IAPExtendedInterfaceCommandID_GetArtworkFormats: {
+            /* same as DisplayRemote::GetArtworkFormats */
+            const int32_t ret = handle_command(ctx, IAPLingoID_DisplayRemote, IAPDisplayRemoteCommandID_GetArtworkFormats, request, response);
+            check_ret(ret == IAPDisplayRemoteCommandID_RetArtworkFormats, ret);
+            return IAPExtendedInterfaceCommandID_RetArtworkFormats;
+        } break;
+        case IAPExtendedInterfaceCommandID_GetTrackArtworkData: {
+            const int32_t ret = start_artwork_data(ctx, request, iap_true);
+            check_ret(ret == 0, ret);
+            /* responded in send_artwork_chunk_cb, no need to do it here */
+            response->ptr = NULL;
+            return 0;
+        } break;
         case IAPExtendedInterfaceCommandID_ResetDBSelection: {
             print("reset db selection");
             alloc_response(IAPExtendedIPodAckPayload, payload);
             payload->status = IAPAckStatus_Success;
             payload->id     = swap_16(command);
             return IAPExtendedInterfaceCommandID_IPodAck;
+        } break;
+        case IAPExtendedInterfaceCommandID_GetNumberCategorizedDBRecords: {
+            const struct IAPGetNumberCategorizedDBRecordsPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
+            check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
+            print("get db records type=0x%02X", request_payload->type);
+
+            uint32_t count;
+            if(request_payload->type == IAPDatabaseType_Track) {
+                struct IAPPlatformPlayStatus status;
+                check_ret(iap_platform_get_play_status(ctx->platform, &status), -IAPAckStatus_ECommandFailed);
+                alloc_response(IAPRetNumPlayingTracksPayload, payload);
+                count = status.track_count;
+            } else {
+                warn("unsupported type");
+                count = 0;
+            }
+
+            alloc_response(IAPReturnNumberCategorizedDBRecordsPayload, payload);
+            payload->count = swap_32(count);
+            return IAPExtendedInterfaceCommandID_ReturnNumberCategorizedDBRecords;
         } break;
         case IAPExtendedInterfaceCommandID_GetPlayStatus: {
             struct IAPPlatformPlayStatus status;
@@ -843,6 +769,17 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
             payload->num_playing_tracks = swap_32(status.track_count);
             return IAPExtendedInterfaceCommandID_ReturnNumPlayingTracks;
         } break;
+        case IAPExtendedInterfaceCommandID_SetCurrentPlayingTrack: {
+            const struct IAPSetCurrentPlayingTrackPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
+            check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
+            print("set playing track index=%u", swap_32(request_payload->index));
+            check_ret(iap_platform_set_playing_track(ctx->platform, swap_32(request_payload->index)), -IAPAckStatus_ECommandFailed);
+
+            alloc_response(IAPExtendedIPodAckPayload, payload);
+            payload->status = IAPAckStatus_Success;
+            payload->id     = swap_16(command);
+            return IAPExtendedInterfaceCommandID_IPodAck;
+        } break;
         }
         break;
     case IAPLingoID_DigitalAudio:
@@ -859,6 +796,137 @@ static int32_t handle_in_authed(struct IAPContext* ctx, uint8_t lingo, uint16_t 
             check_ret(iap_platform_on_acc_samprs_received(ctx->platform, request), -IAPAckStatus_ECommandFailed);
             response->ptr = NULL; /* no response */
             return 0;
+        } break;
+        }
+        break;
+    }
+
+    return -IAPAckStatus_EUnknownID;
+}
+
+static int32_t handle_in_connected(struct IAPContext* ctx, uint8_t lingo, uint16_t command, struct IAPSpan* request, struct IAPSpan* response) {
+    switch(lingo) {
+    case IAPLingoID_General:
+        switch(command) {
+        case IAPGeneralCommandID_StartIDPS: {
+            alloc_response(IAPIPodAckPayload, payload);
+            payload->status = IAPAckStatus_Success;
+            payload->id     = command;
+
+            ctx->phase = IAPPhase_IDPS;
+            print("idps started");
+
+            return IAPGeneralCommandID_IPodAck;
+        } break;
+        }
+        break;
+    }
+    return -IAPAckStatus_EUnknownID;
+}
+
+static IAPBool transition_idps_to_auth_cb(struct IAPContext* ctx) {
+    print("starting accessory authentication");
+    check_ret(ctx->phase == IAPPhase_IDPS, iap_false);
+    ctx->phase = IAPPhase_Auth;
+    check_ret(_iap_send_packet(ctx, IAPLingoID_General, IAPGeneralCommandID_GetAccessoryAuthenticationInfo, (ctx->trans_id += 1), _iap_get_buffer_for_send_payload(ctx).ptr), iap_false);
+    return iap_true;
+}
+
+static int32_t handle_in_idps(struct IAPContext* ctx, uint8_t lingo, uint16_t command, struct IAPSpan* request, struct IAPSpan* response) {
+    switch(lingo) {
+    case IAPLingoID_General:
+        switch(command) {
+        case IAPGeneralCommandID_IdentifyDeviceLingoes: {
+            const struct IAPIdentifyDeviceLingoesPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
+            check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
+
+            const uint32_t bits = swap_32(request_payload->lingoes_bits);
+            print("acc supported lingos:");
+            for(int i = 0; i < 32; i += 1) {
+                if(bits & (1 << i)) {
+                    IAP_LOGF("  %s", _iap_lingo_str(i));
+                }
+            }
+            print("auth_option=%02X device_id=%08X\n", swap_32(request_payload->options), swap_32(request_payload->device_id));
+
+            alloc_response(IAPIPodAckPayload, payload);
+            payload->status = IAPAckStatus_Success;
+            payload->id     = command;
+            /* TODO: wip */
+            return IAPGeneralCommandID_IPodAck;
+        } break;
+        case IAPGeneralCommandID_SetFIDTokenValues: {
+            const int ret = _iap_hanlde_set_fid_token_values(request, response);
+            check_ret(ret == 0, ret);
+            return IAPGeneralCommandID_AckFIDTokenValues;
+        } break;
+        case IAPGeneralCommandID_EndIDPS: {
+            const struct IAPEndIDPSPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
+            check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
+            print("end idps status=0x%02X", request_payload->status);
+            check_ret(request_payload->status == IAPEndIDPSStatus_Success, -IAPAckStatus_ECommandFailed);
+
+            ctx->on_send_complete = transition_idps_to_auth_cb;
+
+            alloc_response(IAPIDPSStatusPayload, payload);
+            payload->status = IAPIDPSStatus_Success;
+            return IAPGeneralCommandID_IDPSStatus;
+        } break;
+        }
+        break;
+    }
+    return iap_false;
+}
+
+static IAPBool send_auth_challenge_sig_cb(struct IAPContext* ctx) {
+    check_ret(ctx->phase == IAPPhase_Auth, iap_false);
+    struct IAPSpan                     request = _iap_get_buffer_for_send_payload(ctx);
+    struct IAPGetAccAuthSigPayload2p0* payload = iap_span_alloc(&request, sizeof(*payload));
+    check_ret(payload != NULL, iap_false);
+    payload->retry = 1;
+    check_ret(_iap_send_packet(ctx, IAPLingoID_General, IAPGeneralCommandID_GetAccessoryAuthenticationSignature, (ctx->trans_id += 1), request.ptr), iap_false);
+    return iap_true;
+}
+
+static IAPBool send_sample_rate_caps_cb(struct IAPContext* ctx) {
+    struct IAPSpan request = _iap_get_buffer_for_send_payload(ctx);
+    check_ret(_iap_send_packet(ctx, IAPLingoID_DigitalAudio, IAPDigitalAudioCommandID_GetAccessorySampleRateCaps, (ctx->trans_id += 1), request.ptr), iap_false);
+    return iap_true;
+}
+
+static int32_t handle_in_auth(struct IAPContext* ctx, uint8_t lingo, uint16_t command, struct IAPSpan* request, struct IAPSpan* response) {
+    switch(lingo) {
+    case IAPLingoID_General:
+        switch(command) {
+        case IAPGeneralCommandID_RetAccessoryAuthenticationInfo: {
+            const struct IAPRetAccAuthInfoPayload2p0* request_payload = iap_span_read(request, sizeof(*request_payload));
+            check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
+            print("accessory cert %u/%u", request_payload->cert_current_section_index, request_payload->cert_max_section_index);
+            iap_platform_dump_hex(request->ptr, request->size);
+            if(request_payload->cert_current_section_index < request_payload->cert_max_section_index) {
+                alloc_response(IAPIPodAckPayload, payload);
+                payload->status = IAPAckStatus_Success;
+                payload->id     = command;
+                return IAPGeneralCommandID_IPodAck;
+            } else {
+                ctx->on_send_complete = send_auth_challenge_sig_cb;
+
+                alloc_response(IAPAckAccAuthInfoPayload, payload);
+                payload->status = IAPAckAccAuthInfoStatus_Supported;
+                return IAPGeneralCommandID_AckAccessoryAuthenticationInfo;
+            }
+        } break;
+        case IAPGeneralCommandID_RetAccessoryAuthenticationSignature: {
+            print("accessory signature");
+            iap_platform_dump_hex(request->ptr, request->size);
+
+            alloc_response(IAPAckAccAuthSigPayload, payload);
+            payload->status = IAPAckStatus_Success;
+
+            ctx->phase            = IAPPhase_Authed;
+            ctx->on_send_complete = send_sample_rate_caps_cb;
+
+            return IAPGeneralCommandID_AckAccessoryAuthenticationStatus;
         } break;
         }
         break;
@@ -964,34 +1032,50 @@ IAPBool _iap_feed_packet(struct IAPContext* ctx, const uint8_t* const data, cons
     check_ret(iap_span_read_16(&request, &buf.u16), iap_false);
     ctx->handling_trans_id = buf.u16;
 
-    /* pick handler function */
-    IAPHandler handler;
-    if(ctx->handler_override != NULL) {
-        handler = ctx->handler_override;
-    } else {
-        static const IAPHandler handlers[] = {
-            handle_in_connected,
-            handle_in_idps,
-            handle_in_auth,
-            handle_in_authed,
-        };
-        handler = handlers[ctx->phase];
-    }
-
-    /* invoke handler */
     struct IAPSpan response = _iap_get_buffer_for_send_payload(ctx);
-    int32_t        ret      = handler(ctx, lingo, command, &request, &response);
+    int32_t        ret      = handle_command(ctx, lingo, command, &request, &response);
     if(response.ptr == NULL) {
         /* handler disabled response */
         return iap_true;
     }
-    if(ret < 0) {
-        /* handling failed, replace response with ipod ack */
-        warn("command handling failed");
-        response = _iap_get_buffer_for_send_payload(ctx);
-        ret      = build_ipod_ack_response(lingo, command, -ret, &response);
-        check_ret(ret >= 0, iap_false);
+    if(ret >= 0) {
+        /* handled successfully */
+        goto respond;
     }
+    if(ret != -IAPAckStatus_EUnknownID) {
+        /* handled, but error */
+        goto error_ack;
+    }
+
+    /* not a standard request, try authentication handlers */
+    ret      = -IAPAckStatus_EBadParameter;
+    response = _iap_get_buffer_for_send_payload(ctx);
+    switch(ctx->phase) {
+    case IAPPhase_Connected:
+        ret = handle_in_connected(ctx, lingo, command, &request, &response);
+        break;
+    case IAPPhase_IDPS:
+        ret = handle_in_idps(ctx, lingo, command, &request, &response);
+        break;
+    case IAPPhase_Auth:
+        ret = handle_in_auth(ctx, lingo, command, &request, &response);
+        break;
+    }
+    if(response.ptr == NULL) {
+        /* handler disabled response */
+        return iap_true;
+    }
+    if(ret >= 0) {
+        /* handled successfully */
+        goto respond;
+    }
+error_ack:
+    /* handling failed, replace response with ipod ack */
+    warn("command handling failed 0x%02X(%s):0x%04X", lingo, _iap_lingo_str(lingo), command);
+    response = _iap_get_buffer_for_send_payload(ctx);
+    ret      = build_ipod_ack_response(lingo, command, -ret, &response);
+    check_ret(ret >= 0, iap_false);
+respond:
     check_ret(_iap_send_packet(ctx, lingo, ret, ctx->handling_trans_id, response.ptr), iap_false);
     return iap_true;
 }
