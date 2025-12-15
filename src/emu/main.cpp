@@ -454,7 +454,7 @@ auto handle_frame(ParsedIAPFrame frame) -> bool {
         switch(frame.command) {
         case IAPExtendedInterfaceCommandID_IPodAck: {
             unwrap(ack, bytes_as<IAPExtendedIPodAckPayload>(frame.payload));
-            PRINT("extended ack command=0x{:04X} status=0x{:02X}", ack.id, ack.status);
+            PRINT("extended ack command=0x{:04X} status=0x{:02X}", swap(ack.id), ack.status);
             return true;
         } break;
         case IAPExtendedInterfaceCommandID_ReturnIndexedPlayingTrackInfo: {
