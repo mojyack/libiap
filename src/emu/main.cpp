@@ -631,6 +631,12 @@ auto handle_stdin(const std::string_view input) -> bool {
             .offset_ms   = 0,
         };
         ensure(send_command(cmd(DisplayRemote, GetTrackArtworkData), &request, sizeof(request)));
+    } else if(elms[0] == "set-index") { /* set-index INDEX */
+        unwrap(index, from_chars<uint32_t>(elms[1]));
+        const auto request = IAPSetCurrentPlayingTrackPayload{
+            .index = swap(index),
+        };
+        ensure(send_command(cmd(ExtendedInterface, SetCurrentPlayingTrack), &request, sizeof(request)));
     } else {
         bail("invalid command {}", elms[0]);
     }
