@@ -21,6 +21,9 @@ IAPBool iap_notify_send_complete(struct IAPContext* ctx);
 IAPBool _iap_send_hid_reports(struct IAPContext* ctx, size_t begin, size_t end); /* data is passed by ctx->send_buf */
 IAPBool _iap_send_next_report(struct IAPContext* ctx);
 
+/* fid-token-values.c */
+int _iap_hanlde_set_fid_token_values(struct IAPSpan* request, struct IAPSpan* response);
+
 /* notification.c */
 void iap_notify_track_time_position(struct IAPContext* ctx, uint32_t pos_ms);
 void iap_notify_track_playback_index(struct IAPContext* ctx, uint32_t index);
@@ -37,6 +40,11 @@ void iap_notify_hold_switch_state(struct IAPContext* ctx, uint8_t state);
 IAPBool iap_periodic_tick(struct IAPContext* ctx); /* call every 100ms */
 
 IAPBool _iap_flush_notification(struct IAPContext* ctx);
+
+/* debug.c */
+const char* _iap_lingo_str(uint8_t lingo);
+IAPBool     _iap_span_is_str(const struct IAPSpan* span);
+const char* _iap_span_as_str(const struct IAPSpan* span);
 
 #ifdef __cplusplus
 }
