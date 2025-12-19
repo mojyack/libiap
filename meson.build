@@ -33,7 +33,6 @@ executable(
         'src/iap/iap.c',
         'src/iap/notification.c',
         'src/iap/span.c',
-        'src/iap/vector.c',
         'src/main.cpp',
         'src/platform.cpp',
         'src/track.cpp',
