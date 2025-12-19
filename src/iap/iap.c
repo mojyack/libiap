@@ -241,6 +241,7 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
         case IAPDisplayRemoteCommandID_SetRemoteEventNotification: {
             const struct IAPSetRemoteEventNotificationPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
+            ctx->notifications_3         = 0;
             ctx->enabled_notifications_3 = swap_32(request_payload->mask);
             print("set remote event notification 0x%04X", ctx->enabled_notifications_3);
 
@@ -656,6 +657,7 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             if(request->size == sizeof(struct IAPSetPlayStatusChangeNotification1BytePayload)) {
                 const struct IAPSetPlayStatusChangeNotification1BytePayload* request_payload = iap_span_read(request, sizeof(*request_payload));
                 check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
+                ctx->notifications_4 = 0;
                 if(request_payload->enable) {
                     ctx->enabled_notifications_4 = 1 << IAPStatusChangeNotificationType_PlaybackStopped |
                                                    1 << IAPStatusChangeNotificationType_TrackIndex |
