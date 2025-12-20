@@ -55,6 +55,12 @@ IAPBool iap_deinit_ctx(struct IAPContext* ctx) {
 
 #define alloc_response(Type, var) alloc_response_extra(Type, var, 0)
 
+static IAPBool register_completion_callback(struct IAPContext* ctx, IAPOnSendComplete cb) {
+    check_ret(ctx->on_send_complete == NULL, iap_false);
+    ctx->on_send_complete = cb;
+    return iap_true;
+}
+
 static uint32_t play_stage_change_notification_set_mask_to_type_mask(uint32_t mask) {
     uint32_t ret = 0;
     if(mask & IAPStatusChangeNotificationBits_Basic) {
@@ -112,7 +118,7 @@ static IAPBool send_artwork_chunk_cb(struct IAPContext* ctx) {
         /* more to send, ask to call again */
         ctx->artwork_cursor += copy_size;
         ctx->artwork_chunk_index += 1;
-        ctx->on_send_complete = send_artwork_chunk_cb;
+        check_ret(register_completion_callback(ctx, send_artwork_chunk_cb), iap_false);
         print("track artwork left %lu bytes", artwork.size);
     } else {
         /* finished, free artwork */
@@ -859,7 +865,7 @@ static int32_t handle_in_idps(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             print("end idps status=0x%02X", request_payload->status);
             check_ret(request_payload->status == IAPEndIDPSStatus_Success, -IAPAckStatus_ECommandFailed);
 
-            ctx->on_send_complete = transition_idps_to_auth_cb;
+            check_ret(register_completion_callback(ctx, transition_idps_to_auth_cb), iap_false);
 
             alloc_response(IAPIDPSStatusPayload, payload);
             payload->status = IAPIDPSStatus_Success;
@@ -902,7 +908,7 @@ static int32_t handle_in_auth(struct IAPContext* ctx, uint8_t lingo, uint16_t co
                 payload->id     = command;
                 return IAPGeneralCommandID_IPodAck;
             } else {
-                ctx->on_send_complete = send_auth_challenge_sig_cb;
+                check_ret(register_completion_callback(ctx, send_auth_challenge_sig_cb), iap_false);
 
                 alloc_response(IAPAckAccAuthInfoPayload, payload);
                 payload->status = IAPAckAccAuthInfoStatus_Supported;
@@ -916,8 +922,8 @@ static int32_t handle_in_auth(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             alloc_response(IAPAckAccAuthSigPayload, payload);
             payload->status = IAPAckStatus_Success;
 
-            ctx->phase            = IAPPhase_Authed;
-            ctx->on_send_complete = send_sample_rate_caps_cb;
+            ctx->phase = IAPPhase_Authed;
+            check_ret(register_completion_callback(ctx, send_sample_rate_caps_cb), iap_false);
 
             return IAPGeneralCommandID_AckAccessoryAuthenticationStatus;
         } break;
@@ -1145,7 +1151,7 @@ static IAPBool send_track_new_audio_attrs_cb(struct IAPContext* ctx) {
 IAPBool iap_select_sampr(struct IAPContext* ctx, uint32_t sampr) {
     ctx->selected_sampr = sampr;
     if(ctx->send_busy) {
-        ctx->on_send_complete = send_track_new_audio_attrs_cb;
+        check_ret(register_completion_callback(ctx, send_track_new_audio_attrs_cb), iap_false);
     } else {
         check_ret(send_track_new_audio_attrs_cb(ctx), 0);
     }
