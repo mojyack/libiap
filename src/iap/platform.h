@@ -10,6 +10,8 @@
 extern "C" {
 #endif
 
+struct IAPContext;
+
 /* iap_platform_malloc */
 enum IAPPlatformMallocFlags {
     IAPPlatformMallocFlags_Uncached = 1 << 0,
@@ -74,34 +76,34 @@ struct IAPPlatformArtwork {
 };
 
 /* library routines */
-void* iap_platform_malloc(void* platform, size_t size, int flags);
-void  iap_platform_free(void* platform, void* ptr);
-int   iap_platform_send_hid_report(void* platform, const void* ptr, size_t size);
+void* iap_platform_malloc(struct IAPContext* iap_ctx, size_t size, int flags);
+void  iap_platform_free(struct IAPContext* iap_ctx, void* ptr);
+int   iap_platform_send_hid_report(struct IAPContext* iap_ctx, const void* ptr, size_t size);
 
 /* system info */
-IAPBool                  iap_platform_get_ipod_serial_num(void* platform, struct IAPSpan* serial);
-enum IAPPlatformUSBSpeed iap_platform_get_usb_speed(void* platform);
+IAPBool                  iap_platform_get_ipod_serial_num(struct IAPContext* iap_ctx, struct IAPSpan* serial);
+enum IAPPlatformUSBSpeed iap_platform_get_usb_speed(struct IAPContext* iap_ctx);
 
 /* audio controls */
-IAPBool iap_platform_get_play_status(void* platform, struct IAPPlatformPlayStatus* status);
-IAPBool iap_platform_control(void* platform, enum IAPPlatformControl control);
-IAPBool iap_platform_get_volume(void* platform, struct IAPPlatformVolumeStatus* status);
-IAPBool iap_platform_get_power_status(void* platform, struct IAPPlatformPowerStatus* status);
-IAPBool iap_platform_get_shuffle_setting(void* platform, uint8_t* status /* IAPIPodStateShuffleSettingState */);
-IAPBool iap_platform_set_shuffle_setting(void* platform, uint8_t status /* IAPIPodStateShuffleSettingState */);
-IAPBool iap_platform_get_repeat_setting(void* platform, uint8_t* status /* IAPIPodStateRepeatSettingState */);
-IAPBool iap_platform_set_repeat_setting(void* platform, uint8_t status /* IAPIPodStateRepeatSettingState */);
-IAPBool iap_platform_get_date_time(void* platform, struct IAPDateTime* time);
-IAPBool iap_platform_get_backlight_level(void* platform, uint8_t* level);
-IAPBool iap_platform_get_hold_switch_state(void* platform, IAPBool* state);
-IAPBool iap_platform_get_indexed_track_info(void* platform, uint32_t index, struct IAPPlatformTrackInfo* info);
-IAPBool iap_platform_set_playing_track(void* platform, uint32_t index);
-IAPBool iap_platform_open_artwork(void* platform, uint32_t index, struct IAPPlatformArtwork* artwork);
-IAPBool iap_platform_get_artwork_ptr(void* platform, struct IAPPlatformArtwork* artwork, struct IAPSpan* span);
-IAPBool iap_platform_close_artwork(void* platform, struct IAPPlatformArtwork* artwork);
+IAPBool iap_platform_get_play_status(struct IAPContext* iap_ctx, struct IAPPlatformPlayStatus* status);
+IAPBool iap_platform_control(struct IAPContext* iap_ctx, enum IAPPlatformControl control);
+IAPBool iap_platform_get_volume(struct IAPContext* iap_ctx, struct IAPPlatformVolumeStatus* status);
+IAPBool iap_platform_get_power_status(struct IAPContext* iap_ctx, struct IAPPlatformPowerStatus* status);
+IAPBool iap_platform_get_shuffle_setting(struct IAPContext* iap_ctx, uint8_t* status /* IAPIPodStateShuffleSettingState */);
+IAPBool iap_platform_set_shuffle_setting(struct IAPContext* iap_ctx, uint8_t status /* IAPIPodStateShuffleSettingState */);
+IAPBool iap_platform_get_repeat_setting(struct IAPContext* iap_ctx, uint8_t* status /* IAPIPodStateRepeatSettingState */);
+IAPBool iap_platform_set_repeat_setting(struct IAPContext* iap_ctx, uint8_t status /* IAPIPodStateRepeatSettingState */);
+IAPBool iap_platform_get_date_time(struct IAPContext* iap_ctx, struct IAPDateTime* time);
+IAPBool iap_platform_get_backlight_level(struct IAPContext* iap_ctx, uint8_t* level);
+IAPBool iap_platform_get_hold_switch_state(struct IAPContext* iap_ctx, IAPBool* state);
+IAPBool iap_platform_get_indexed_track_info(struct IAPContext* iap_ctx, uint32_t index, struct IAPPlatformTrackInfo* info);
+IAPBool iap_platform_set_playing_track(struct IAPContext* iap_ctx, uint32_t index);
+IAPBool iap_platform_open_artwork(struct IAPContext* iap_ctx, uint32_t index, struct IAPPlatformArtwork* artwork);
+IAPBool iap_platform_get_artwork_ptr(struct IAPContext* iap_ctx, struct IAPPlatformArtwork* artwork, struct IAPSpan* span);
+IAPBool iap_platform_close_artwork(struct IAPContext* iap_ctx, struct IAPPlatformArtwork* artwork);
 
 /* other callbacks */
-IAPBool iap_platform_on_acc_samprs_received(void* platform, struct IAPSpan* samprs);
+IAPBool iap_platform_on_acc_samprs_received(struct IAPContext* iap_ctx, struct IAPSpan* samprs);
 
 /* debugging */
 void iap_platform_dump_hex(const void* ptr, size_t size);
