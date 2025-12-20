@@ -12,6 +12,7 @@ struct Context {
     size_t             current_track;
     size_t             pcm_cursor;
     PlayState          play_state = PlayState::Stopped;
+    int fd;
 
     auto set_state(PlayState new_state) -> bool;
     auto skip_track(int diff) -> bool;

@@ -14,7 +14,6 @@
 #include "iap/spec/iap.h"
 #include "macros/autoptr.hpp"
 #include "macros/unwrap.hpp"
-#include "platform.hpp"
 #include "util/hexdump.hpp"
 #include "util/split.hpp"
 
@@ -29,9 +28,9 @@ auto diff_ms(std::chrono::system_clock::time_point a, std::chrono::system_clock:
     return std::chrono::duration_cast<std::chrono::milliseconds>(a - b).count();
 }
 
-auto snd      = AutoSndPCM();
-auto iap_ctx  = IAPContext();
-auto platform = LinuxPlatformData();
+auto snd     = AutoSndPCM();
+auto ctx     = Context();
+auto iap_ctx = IAPContext();
 
 auto handle_stdin(const std::string_view input) -> bool {
     if(input.empty()) {
@@ -39,15 +38,15 @@ auto handle_stdin(const std::string_view input) -> bool {
     }
     const auto elms = split(input, " ");
     if(elms[0] == "next") {
-        ensure(platform.ctx.skip_track(1));
+        ensure(ctx.skip_track(1));
     } else if(elms[0] == "prev") {
-        ensure(platform.ctx.skip_track(-1));
+        ensure(ctx.skip_track(-1));
     } else if(elms[0] == "pause") {
-        ensure(platform.ctx.set_state(PlayState::Paused));
+        ensure(ctx.set_state(PlayState::Paused));
     } else if(elms[0] == "play") {
-        ensure(platform.ctx.set_state(PlayState::Playing));
+        ensure(ctx.set_state(PlayState::Playing));
     } else if(elms[0] == "stop") {
-        ensure(platform.ctx.set_state(PlayState::Stopped));
+        ensure(ctx.set_state(PlayState::Stopped));
     } else {
         bail("invalid command {}", elms[0]);
     }
@@ -56,7 +55,6 @@ auto handle_stdin(const std::string_view input) -> bool {
 } // namespace
 
 auto Context::set_state(const PlayState new_state) -> bool {
-    auto& ctx = ((LinuxPlatformData*)iap_ctx.platform)->ctx;
     switch(play_state) {
     case PlayState::Stopped:
         switch(new_state) {
@@ -64,8 +62,8 @@ auto Context::set_state(const PlayState new_state) -> bool {
             break;
         case PlayState::Playing:
         case PlayState::Paused:
-            ctx.current_track = 0;
-            ctx.pcm_cursor    = 0;
+            current_track = 0;
+            pcm_cursor    = 0;
             ensure(snd_pcm_prepare(snd.get()) == 0);
             iap_notify_play_status(&iap_ctx, IAPIPodStatePlayStatus_Playing);
             break;
@@ -111,21 +109,16 @@ auto Context::skip_track(const int diff) -> bool {
 }
 
 auto main(const int argc, const char* const* argv) -> int {
-    platform = {
-        .fd      = open("/dev/iap0", O_RDWR),
-        .iap_ctx = &iap_ctx,
-    };
-    ensure(platform.fd >= 0);
+    ctx.fd = open("/dev/iap0", O_RDWR);
+    ensure(ctx.fd >= 0);
     iap_ctx = IAPContext{
-        .platform = &platform,
+        .platform = &ctx,
         .opts     = {
                 .ignore_hid_report_id  = 1,
                 .artwork_single_report = iap_platform_get_usb_speed(nullptr) == IAPPlatformUSBSpeed_Full,
         },
     };
     ensure(iap_init_ctx(&iap_ctx));
-
-    auto& ctx = platform.ctx;
 
     ensure(snd_pcm_open(std::inout_ptr(snd), "hw:0,0", SND_PCM_STREAM_PLAYBACK, SND_PCM_NONBLOCK) == 0);
     ensure(snd_pcm_set_params(snd.get(), SND_PCM_FORMAT_S16_LE, SND_PCM_ACCESS_RW_INTERLEAVED, 2, 44100, 0, 50000) == 0);
@@ -148,7 +141,7 @@ auto main(const int argc, const char* const* argv) -> int {
     auto& stdin_pfd = pfds[0];
     auto& iap_pfd   = pfds[1];
     stdin_pfd       = {.fd = fileno(stdin), .events = POLLIN};
-    iap_pfd         = {.fd = platform.fd};
+    iap_pfd         = {.fd = ctx.fd};
     snd_pcm_poll_descriptors(snd.get(), &pfds[2], pfds.size() - 2);
     ensure(fcntl(fileno(stdin), F_SETFL, O_NONBLOCK) == 0);
     auto last_tick_called = time_now();
@@ -177,7 +170,7 @@ loop:
     }
     if(iap_pfd.revents & POLLIN) {
         auto       buf = std::array<uint8_t, 256>();
-        const auto ret = read(platform.fd, buf.data(), buf.size());
+        const auto ret = read(ctx.fd, buf.data(), buf.size());
         ensure(ret > 0);
         std::println("====== acc: {} bytes ======", ret);
         dump_hex(std::span{buf.data(), size_t(ret)});

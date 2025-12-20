@@ -12,7 +12,7 @@ project(
 add_project_arguments('-Wfatal-errors', language: 'cpp')
 add_project_arguments('-Wno-missing-field-initializers', language: 'cpp')
 add_project_arguments('-Wno-variadic-macro-arguments-omitted', language: 'c')
-add_project_arguments('-Wno-c99-extensions', language: 'c')
+add_project_arguments('-Wno-c99-extensions', language: ['c', 'cpp'])
 
 
 cpp = meson.get_compiler('cpp')

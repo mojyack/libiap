@@ -8,37 +8,36 @@
 #include "iap/platform.h"
 #include "macros/unwrap.hpp"
 #include "platform-macros.h"
-#include "platform.hpp"
 #include "util/fd.hpp"
 #include "util/hexdump.hpp"
 
 extern "C" {
-void* iap_platform_malloc(void* platform, size_t size, int flags) {
-    (void)platform;
+void* iap_platform_malloc(struct IAPContext* iap_ctx, size_t size, int flags) {
+    (void)iap_ctx;
     (void)flags;
     return malloc(size);
 }
 
-void iap_platform_free(void* platform, void* ptr) {
-    (void)platform;
+void iap_platform_free(struct IAPContext* iap_ctx, void* ptr) {
+    (void)iap_ctx;
     free(ptr);
 }
 
-int iap_platform_send_hid_report(void* platform, const void* ptr, size_t size) {
+int iap_platform_send_hid_report(struct IAPContext* iap_ctx, const void* ptr, size_t size) {
     std::println("====== dev: {} bytes ======", size);
+    const auto& ctx = *((struct Context*)iap_ctx->platform);
     dump_hex(std::span{(uint8_t*)ptr, size});
-    const auto fd = ((struct LinuxPlatformData*)platform)->fd;
-    return write(fd, ptr, size);
+    return write(ctx.fd, ptr, size);
 }
 
-IAPBool iap_platform_get_ipod_serial_num(void* platform, struct IAPSpan* serial) {
-    (void)platform;
+IAPBool iap_platform_get_ipod_serial_num(struct IAPContext* iap_ctx, struct IAPSpan* serial) {
+    (void)iap_ctx;
     static const char* serial_num = "000000000000";
     return iap_span_append(serial, serial_num, strlen(serial_num) + 1);
 }
 
-enum IAPPlatformUSBSpeed iap_platform_get_usb_speed(void* platform) {
-    (void)platform;
+enum IAPPlatformUSBSpeed iap_platform_get_usb_speed(struct IAPContext* iap_ctx) {
+    (void)iap_ctx;
     static auto cache = IAPPlatformUSBSpeed(-1);
     if(cache < 0) {
         constexpr auto error_value = IAPPlatformUSBSpeed_Full;
@@ -51,8 +50,8 @@ enum IAPPlatformUSBSpeed iap_platform_get_usb_speed(void* platform) {
     return cache;
 }
 
-IAPBool iap_platform_get_play_status(void* platform, struct IAPPlatformPlayStatus* status) {
-    const auto& ctx = ((struct LinuxPlatformData*)platform)->ctx;
+IAPBool iap_platform_get_play_status(struct IAPContext* iap_ctx, struct IAPPlatformPlayStatus* status) {
+    const auto& ctx = *((struct Context*)iap_ctx->platform);
     if(ctx.play_state != PlayState::Stopped) {
         const auto& track      = ctx.tracks[ctx.current_track];
         status->track_total_ms = samples_to_ms(track.data.size());
@@ -70,10 +69,10 @@ IAPBool iap_platform_get_play_status(void* platform, struct IAPPlatformPlayStatu
     return iap_true;
 }
 
-IAPBool iap_platform_control(void* platform, enum IAPPlatformControl control) {
+IAPBool iap_platform_control(struct IAPContext* iap_ctx, enum IAPPlatformControl control) {
     constexpr auto error_value = iap_false;
 
-    auto& ctx = ((struct LinuxPlatformData*)platform)->ctx;
+    auto& ctx = *((struct Context*)iap_ctx->platform);
     std::println("control {}", int(control));
     switch(control) {
     case IAPPlatformControl_TogglePlayPause: {
@@ -107,46 +106,46 @@ IAPBool iap_platform_control(void* platform, enum IAPPlatformControl control) {
     return iap_true;
 }
 
-IAPBool iap_platform_get_volume(void* platform, struct IAPPlatformVolumeStatus* status) {
-    (void)platform;
+IAPBool iap_platform_get_volume(struct IAPContext* iap_ctx, struct IAPPlatformVolumeStatus* status) {
+    (void)iap_ctx;
     status->volume = 128;
     status->muted  = iap_false;
     return iap_true;
 }
 
-IAPBool iap_platform_get_power_status(void* platform, struct IAPPlatformPowerStatus* status) {
-    (void)platform;
+IAPBool iap_platform_get_power_status(struct IAPContext* iap_ctx, struct IAPPlatformPowerStatus* status) {
+    (void)iap_ctx;
     status->state         = IAPIPodStatePowerState_Internal;
     status->battery_level = 128;
     return iap_true;
 }
 
-IAPBool iap_platform_get_shuffle_setting(void* platform, uint8_t* status) {
-    (void)platform;
+IAPBool iap_platform_get_shuffle_setting(struct IAPContext* iap_ctx, uint8_t* status) {
+    (void)iap_ctx;
     *status = IAPIPodStateShuffleSettingState_Off;
     return iap_true;
 }
 
-IAPBool iap_platform_set_shuffle_setting(void* platform, uint8_t status) {
-    (void)platform;
+IAPBool iap_platform_set_shuffle_setting(struct IAPContext* iap_ctx, uint8_t status) {
+    (void)iap_ctx;
     (void)status;
     return iap_true;
 }
 
-IAPBool iap_platform_get_repeat_setting(void* platform, uint8_t* status) {
-    (void)platform;
+IAPBool iap_platform_get_repeat_setting(struct IAPContext* iap_ctx, uint8_t* status) {
+    (void)iap_ctx;
     *status = IAPIPodStateRepeatSettingState_Off;
     return iap_true;
 }
 
-IAPBool iap_platform_set_repeat_setting(void* platform, uint8_t status) {
-    (void)platform;
+IAPBool iap_platform_set_repeat_setting(struct IAPContext* iap_ctx, uint8_t status) {
+    (void)iap_ctx;
     (void)status;
     return iap_true;
 }
 
-IAPBool iap_platform_get_date_time(void* platform, struct IAPDateTime* time) {
-    (void)platform;
+IAPBool iap_platform_get_date_time(struct IAPContext* iap_ctx, struct IAPDateTime* time) {
+    (void)iap_ctx;
     time->year    = 2025;
     time->month   = 11;
     time->day     = 12;
@@ -156,22 +155,22 @@ IAPBool iap_platform_get_date_time(void* platform, struct IAPDateTime* time) {
     return iap_true;
 }
 
-IAPBool iap_platform_get_backlight_level(void* platform, uint8_t* level) {
-    (void)platform;
+IAPBool iap_platform_get_backlight_level(struct IAPContext* iap_ctx, uint8_t* level) {
+    (void)iap_ctx;
     *level = 128;
     return iap_true;
 }
 
-IAPBool iap_platform_get_hold_switch_state(void* platform, IAPBool* state) {
-    (void)platform;
+IAPBool iap_platform_get_hold_switch_state(struct IAPContext* iap_ctx, IAPBool* state) {
+    (void)iap_ctx;
     *state = iap_false;
     return iap_true;
 }
 
-IAPBool iap_platform_get_indexed_track_info(void* platform, uint32_t index, struct IAPPlatformTrackInfo* info) {
+IAPBool iap_platform_get_indexed_track_info(struct IAPContext* iap_ctx, uint32_t index, struct IAPPlatformTrackInfo* info) {
     constexpr auto error_value = iap_false;
 
-    const auto& ctx = ((struct LinuxPlatformData*)platform)->ctx;
+    auto& ctx = *((struct Context*)iap_ctx->platform);
     ensure_v(index < ctx.tracks.size());
     ensure_v(ctx.play_state != PlayState::Stopped);
     const auto& track = ctx.tracks[index];
@@ -204,19 +203,19 @@ IAPBool iap_platform_get_indexed_track_info(void* platform, uint32_t index, stru
     return iap_true;
 }
 
-IAPBool iap_platform_set_playing_track(void* platform, uint32_t index) {
+IAPBool iap_platform_set_playing_track(struct IAPContext* iap_ctx, uint32_t index) {
     constexpr auto error_value = iap_false;
 
-    auto& ctx = ((struct LinuxPlatformData*)platform)->ctx;
+    auto& ctx = *((struct Context*)iap_ctx->platform);
     ensure_v(ctx.skip_track(int(index) - ctx.current_track));
 
     return iap_true;
 }
 
-IAPBool iap_platform_open_artwork(void* platform, uint32_t index, struct IAPPlatformArtwork* artwork) {
+IAPBool iap_platform_open_artwork(struct IAPContext* iap_ctx, uint32_t index, struct IAPPlatformArtwork* artwork) {
     constexpr auto error_value = iap_false;
 
-    const auto& ctx = ((struct LinuxPlatformData*)platform)->ctx;
+    auto& ctx = *((struct Context*)iap_ctx->platform);
     ensure_v(index < ctx.tracks.size());
     const auto& track = ctx.tracks[index];
 
@@ -229,23 +228,21 @@ IAPBool iap_platform_open_artwork(void* platform, uint32_t index, struct IAPPlat
     return iap_true;
 }
 
-IAPBool iap_platform_get_artwork_ptr(void* platform, struct IAPPlatformArtwork* artwork, struct IAPSpan* span) {
-    (void)platform;
+IAPBool iap_platform_get_artwork_ptr(struct IAPContext* iap_ctx, struct IAPPlatformArtwork* artwork, struct IAPSpan* span) {
+    (void)iap_ctx;
     span->ptr  = (uint8_t*)artwork->opaque;
     span->size = IAP_ARTWORK_WIDTH * IAP_ARTWORK_HEIGHT * 2;
     return iap_true;
 }
 
-IAPBool iap_platform_close_artwork(void* platform, struct IAPPlatformArtwork* artwork) {
-    (void)platform;
+IAPBool iap_platform_close_artwork(struct IAPContext* iap_ctx, struct IAPPlatformArtwork* artwork) {
+    (void)iap_ctx;
     delete[](std::byte*)artwork->opaque;
     return iap_true;
 }
 
-IAPBool iap_platform_on_acc_samprs_received(void* platform, struct IAPSpan* samprs) {
+IAPBool iap_platform_on_acc_samprs_received(struct IAPContext* iap_ctx, struct IAPSpan* samprs) {
     constexpr auto error_value = iap_false;
-
-    const auto iap_ctx = ((struct LinuxPlatformData*)platform)->iap_ctx;
 
     while(samprs->size > 0) {
         uint32_t sample_rate;
