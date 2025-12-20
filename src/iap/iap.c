@@ -152,6 +152,13 @@ static int32_t start_artwork_data(struct IAPContext* ctx, struct IAPSpan* reques
     return 0;
 }
 
+static int32_t ipod_ack(uint16_t command, enum IAPAckStatus status, struct IAPSpan* response, uint16_t ret) {
+    alloc_response(IAPIPodAckPayload, payload);
+    payload->status = status;
+    payload->id     = command;
+    return ret;
+}
+
 static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t command, struct IAPSpan* request, struct IAPSpan* response) {
     switch(lingo) {
     case IAPLingoID_General:
@@ -169,11 +176,7 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             const struct IAPSetUIModePayload* request_payload = iap_span_read(request, sizeof(*request_payload));
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
             print("set ui mode 0x%02X", request_payload->ui_mode);
-
-            alloc_response(IAPIPodAckPayload, payload);
-            payload->status = IAPAckStatus_Success;
-            payload->id     = command;
-            return IAPGeneralCommandID_IPodAck;
+            return ipod_ack(command, IAPAckStatus_Success, response, IAPGeneralCommandID_IPodAck);
         } break;
         case IAPGeneralCommandID_GetIPodOptionsForLingo: {
             const struct IAPGetIPodOptionsForLingoPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
@@ -211,23 +214,14 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
         case IAPGeneralCommandID_SetAvailableCurrent: {
             const struct IAPSetAvailableCurrentPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
-
             print("available current %u", swap_16(request_payload->current_limit_ma));
-
-            alloc_response(IAPIPodAckPayload, payload);
-            payload->status = IAPAckStatus_Success;
-            payload->id     = command;
-            return IAPGeneralCommandID_IPodAck;
+            return ipod_ack(command, IAPAckStatus_Success, response, IAPGeneralCommandID_IPodAck);
         } break;
         case IAPGeneralCommandID_SetEventNotification: {
             const struct IAPSetEventNotificationPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
             print("event notification %lX", swap_64(request_payload->mask));
-
-            alloc_response(IAPIPodAckPayload, payload);
-            payload->status = IAPAckStatus_Success;
-            payload->id     = command;
-            return IAPGeneralCommandID_IPodAck;
+            return ipod_ack(command, IAPAckStatus_Success, response, IAPGeneralCommandID_IPodAck);
         } break;
         }
         break;
@@ -237,11 +231,7 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             const struct IAPSetCurrentEQProfileIndexPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
             print("set current rq profile index=%d", swap_32(request_payload->index));
-
-            alloc_response(IAPIPodAckPayload, payload);
-            payload->status = IAPAckStatus_Success;
-            payload->id     = command;
-            return IAPDisplayRemoteCommandID_IPodAck;
+            return ipod_ack(command, IAPAckStatus_Success, response, IAPDisplayRemoteCommandID_IPodAck);
         } break;
         case IAPDisplayRemoteCommandID_SetRemoteEventNotification: {
             const struct IAPSetRemoteEventNotificationPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
@@ -249,11 +239,7 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             ctx->notifications_3         = 0;
             ctx->enabled_notifications_3 = swap_32(request_payload->mask);
             print("set remote event notification 0x%04X", ctx->enabled_notifications_3);
-
-            alloc_response(IAPIPodAckPayload, payload);
-            payload->status = IAPAckStatus_Success;
-            payload->id     = command;
-            return IAPDisplayRemoteCommandID_IPodAck;
+            return ipod_ack(command, IAPAckStatus_Success, response, IAPDisplayRemoteCommandID_IPodAck);
         } break;
         case IAPDisplayRemoteCommandID_GetIPodStateInfo: {
             const struct IAPGetIPodStateInfoPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
@@ -808,14 +794,9 @@ static int32_t handle_in_connected(struct IAPContext* ctx, uint8_t lingo, uint16
     case IAPLingoID_General:
         switch(command) {
         case IAPGeneralCommandID_StartIDPS: {
-            alloc_response(IAPIPodAckPayload, payload);
-            payload->status = IAPAckStatus_Success;
-            payload->id     = command;
-
-            ctx->phase = IAPPhase_IDPS;
             print("idps started");
-
-            return IAPGeneralCommandID_IPodAck;
+            ctx->phase = IAPPhase_IDPS;
+            return ipod_ack(command, IAPAckStatus_Success, response, IAPGeneralCommandID_IPodAck);
         } break;
         }
         break;
@@ -847,12 +828,8 @@ static int32_t handle_in_idps(struct IAPContext* ctx, uint8_t lingo, uint16_t co
                 }
             }
             print("auth_option=%02X device_id=%08X\n", swap_32(request_payload->options), swap_32(request_payload->device_id));
-
-            alloc_response(IAPIPodAckPayload, payload);
-            payload->status = IAPAckStatus_Success;
-            payload->id     = command;
             /* TODO: wip */
-            return IAPGeneralCommandID_IPodAck;
+            return ipod_ack(command, IAPAckStatus_Success, response, IAPGeneralCommandID_IPodAck);
         } break;
         case IAPGeneralCommandID_SetFIDTokenValues: {
             const int ret = _iap_hanlde_set_fid_token_values(request, response);
@@ -903,10 +880,7 @@ static int32_t handle_in_auth(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             print("accessory cert %u/%u", request_payload->cert_current_section_index, request_payload->cert_max_section_index);
             /* iap_platform_dump_hex(request->ptr, request->size); */
             if(request_payload->cert_current_section_index < request_payload->cert_max_section_index) {
-                alloc_response(IAPIPodAckPayload, payload);
-                payload->status = IAPAckStatus_Success;
-                payload->id     = command;
-                return IAPGeneralCommandID_IPodAck;
+                return ipod_ack(command, IAPAckStatus_Success, response, IAPGeneralCommandID_IPodAck);
             } else {
                 check_ret(register_completion_callback(ctx, send_auth_challenge_sig_cb), iap_false);
 
