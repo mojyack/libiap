@@ -219,6 +219,11 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             payload->minor = table[request_payload->lingo].minor;
             return IAPGeneralCommandID_ReturnLingoProtocolVersion;
         } break;
+        case IAPGeneralCommandID_GetIPodOptions: {
+            alloc_response(IAPRetIPodOptionsPayload, payload);
+            payload->state = 0;
+            return IAPGeneralCommandID_RetIPodOptions;
+        } break;
         case IAPGeneralCommandID_SetUIMode: {
             const struct IAPSetUIModePayload* request_payload = iap_span_read(request, sizeof(*request_payload));
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);

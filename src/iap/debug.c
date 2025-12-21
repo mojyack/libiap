@@ -325,6 +325,10 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
             IAP_LOGF("  option=0x%02X", swap_32(payload->options));
             IAP_LOGF("  device_id=0x%04X", swap_32(payload->device_id));
         } break;
+        case IAPGeneralCommandID_RetIPodOptions: {
+            span_read(IAPRetIPodOptionsPayload);
+            IAP_LOGF("  state=0x%08lX", swap_64(payload->state));
+        } break;
         case IAPGeneralCommandID_SetUIMode: {
             span_read(IAPSetUIModePayload);
             IAP_LOGF("  mode=0x%02X", payload->ui_mode);
@@ -339,7 +343,7 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
         } break;
         case IAPGeneralCommandID_RetSupportedEventNotification: {
             span_read(IAPRetSupportedEventNotificationPayload);
-            IAP_LOGF("  mask=0x%08X", swap_64(payload->mask));
+            IAP_LOGF("  mask=0x%08lX", swap_64(payload->mask));
         } break;
         case IAPGeneralCommandID_SetAvailableCurrent: {
             span_read(IAPSetAvailableCurrentPayload);
@@ -347,7 +351,7 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
         } break;
         case IAPGeneralCommandID_SetEventNotification: {
             span_read(IAPSetEventNotificationPayload);
-            IAP_LOGF("  mask=0x%08X", swap_64(payload->mask));
+            IAP_LOGF("  mask=0x%08lX", swap_64(payload->mask));
         } break;
         }
         break;
