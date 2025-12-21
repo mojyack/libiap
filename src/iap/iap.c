@@ -167,6 +167,11 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
     switch(lingo) {
     case IAPLingoID_General:
         switch(command) {
+        case IAPGeneralCommandID_RequestExtendedInterfaceMode: {
+            alloc_response(IAPReturnExtendedInterfaceModePayload, payload);
+            payload->is_ext_mode = 1;
+            return IAPGeneralCommandID_ReturnExtendedInterfaceMode;
+        } break;
         case IAPGeneralCommandID_RequestIPodSoftwareVersion: {
             alloc_response(IAPReturnIPodSoftwareVersionPayload, payload);
             payload->major    = 18;
