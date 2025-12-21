@@ -172,8 +172,8 @@ loop:
         auto       buf = std::array<uint8_t, 256>();
         const auto ret = read(ctx.fd, buf.data(), buf.size());
         ensure(ret > 0);
-        std::println("====== acc: {} bytes ======", ret);
-        dump_hex(std::span{buf.data(), size_t(ret)});
+        // std::println("====== acc: {} bytes ======", ret);
+        // dump_hex(std::span{buf.data(), size_t(ret)});
         iap_feed_hid_report(&iap_ctx, buf.data(), ret);
     }
     if(ctx.play_state != PlayState::Playing) {

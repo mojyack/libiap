@@ -14,6 +14,7 @@ struct IAPSpan _iap_get_buffer_for_send_payload(struct IAPContext* ctx);
 IAPBool        _iap_send_packet(struct IAPContext* ctx, uint8_t lingo, uint16_t command, int32_t trans_id, uint8_t* final_ptr);
 /* must be called after iap_platform_on_acc_samprs_received */
 IAPBool iap_select_sampr(struct IAPContext* ctx, uint32_t sampr);
+IAPBool iap_control_response(struct IAPContext* ctx, struct IAPPlatformPendingControl pending, IAPBool result);
 
 /* hid.c */
 IAPBool iap_feed_hid_report(struct IAPContext* ctx, const uint8_t* data, size_t size);

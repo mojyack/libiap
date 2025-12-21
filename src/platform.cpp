@@ -24,9 +24,9 @@ void iap_platform_free(struct IAPContext* iap_ctx, void* ptr) {
 }
 
 int iap_platform_send_hid_report(struct IAPContext* iap_ctx, const void* ptr, size_t size) {
-    std::println("====== dev: {} bytes ======", size);
+    // std::println("====== dev: {} bytes ======", size);
     const auto& ctx = *((struct Context*)iap_ctx->platform);
-    dump_hex(std::span{(uint8_t*)ptr, size});
+    // dump_hex(std::span{(uint8_t*)ptr, size});
     return write(ctx.fd, ptr, size);
 }
 
@@ -69,41 +69,44 @@ IAPBool iap_platform_get_play_status(struct IAPContext* iap_ctx, struct IAPPlatf
     return iap_true;
 }
 
-IAPBool iap_platform_control(struct IAPContext* iap_ctx, enum IAPPlatformControl control) {
-    constexpr auto error_value = iap_false;
-
+void iap_platform_control(struct IAPContext* iap_ctx, enum IAPPlatformControl control, struct IAPPlatformPendingControl pending) {
     auto& ctx = *((struct Context*)iap_ctx->platform);
     std::println("control {}", int(control));
+    auto result = iap_true;
+#define error_act result = iap_false;
     switch(control) {
     case IAPPlatformControl_TogglePlayPause: {
         switch(ctx.play_state) {
         case PlayState::Stopped:
-            bail_v("play/pause toggle while stopped");
+            bail_a("play/pause toggle while stopped");
+            break;
         case PlayState::Playing:
-            ensure_v(ctx.set_state(PlayState::Paused));
+            ensure_a(ctx.set_state(PlayState::Paused));
             break;
         case PlayState::Paused:
-            ensure_v(ctx.set_state(PlayState::Playing));
+            ensure_a(ctx.set_state(PlayState::Playing));
             break;
         }
     } break;
     case IAPPlatformControl_Play: {
-        ensure_v(ctx.set_state(PlayState::Paused));
+        ensure_a(ctx.set_state(PlayState::Playing));
     } break;
     case IAPPlatformControl_Pause: {
-        ensure_v(ctx.set_state(PlayState::Paused));
+        ensure_a(ctx.set_state(PlayState::Paused));
     } break;
     case IAPPlatformControl_Stop: {
-        ensure_v(ctx.set_state(PlayState::Stopped));
+        ensure_a(ctx.set_state(PlayState::Stopped));
     } break;
     case IAPPlatformControl_Next: {
-        ensure_v(ctx.skip_track(1));
+        ensure_a(ctx.skip_track(1));
     } break;
     case IAPPlatformControl_Prev: {
-        ensure_v(ctx.skip_track(-1));
+        ensure_a(ctx.skip_track(-1));
     } break;
     }
-    return iap_true;
+#undef error_act
+    ensure_v(iap_control_response(iap_ctx, pending, result));
+    return;
 }
 
 IAPBool iap_platform_get_volume(struct IAPContext* iap_ctx, struct IAPPlatformVolumeStatus* status) {

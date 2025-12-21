@@ -138,6 +138,16 @@ IAPBool _iap_send_next_report(struct IAPContext* ctx) {
             IAPOnSendComplete cb  = ctx->on_send_complete;
             ctx->on_send_complete = NULL;
             check_ret(cb(ctx), iap_false);
+        } else if(ctx->active_events[0].callback != NULL) {
+            struct IAPActiveEvent event = ctx->active_events[0];
+            /* shift queue */
+            size_t i = 0;
+            for(; i < array_size(ctx->active_events) - 1 && ctx->active_events[i + 1].callback != NULL; i += 1) {
+                ctx->active_events[i] = ctx->active_events[i + 1];
+            }
+            ctx->active_events[i].callback = NULL;
+            /* process event */
+            check_ret(event.callback(ctx, &event), iap_false);
         } else if(ctx->flushing_notifications) {
             check_ret(_iap_flush_notification(ctx), iap_false);
         }

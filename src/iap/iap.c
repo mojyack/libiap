@@ -23,15 +23,18 @@ IAPBool iap_init_ctx(struct IAPContext* ctx) {
     ctx->send_buf_sending_range_begin = 0;
     ctx->send_buf_sending_range_end   = 0;
     ctx->on_send_complete             = NULL;
-    ctx->handling_trans_id            = -1;
-    ctx->artwork.valid                = iap_false;
-    ctx->trans_id                     = 0;
-    ctx->enabled_notifications_3      = 0;
-    ctx->notifications_3              = 0;
-    ctx->enabled_notifications_4      = 0;
-    ctx->notifications_4              = 0;
-    ctx->notification_tick            = 0;
-    ctx->hid_send_staging_buf         = iap_platform_malloc(ctx, max_input_hid_desc_size + 1 /* report id */, IAPPlatformMallocFlags_Uncached);
+    for(size_t i = 0; i < array_size(ctx->active_events); i += 1) {
+        ctx->active_events[i].callback = NULL;
+    }
+    ctx->handling_trans_id       = -1;
+    ctx->artwork.valid           = iap_false;
+    ctx->trans_id                = 0;
+    ctx->enabled_notifications_3 = 0;
+    ctx->notifications_3         = 0;
+    ctx->enabled_notifications_4 = 0;
+    ctx->notifications_4         = 0;
+    ctx->notification_tick       = 0;
+    ctx->hid_send_staging_buf    = iap_platform_malloc(ctx, max_input_hid_desc_size + 1 /* report id */, IAPPlatformMallocFlags_Uncached);
     check_ret(ctx->hid_send_staging_buf != NULL, iap_false);
     ctx->send_busy              = iap_false;
     ctx->flushing_notifications = iap_false;
@@ -54,12 +57,6 @@ IAPBool iap_deinit_ctx(struct IAPContext* ctx) {
     check_ret(payload != NULL, -IAPAckStatus_EOutOfResource);
 
 #define alloc_response(Type, var) alloc_response_extra(Type, var, 0)
-
-static IAPBool register_completion_callback(struct IAPContext* ctx, IAPOnSendComplete cb) {
-    check_ret(ctx->on_send_complete == NULL, iap_false);
-    ctx->on_send_complete = cb;
-    return iap_true;
-}
 
 static uint32_t play_stage_change_notification_set_mask_to_type_mask(uint32_t mask) {
     uint32_t ret = 0;
@@ -118,7 +115,7 @@ static IAPBool send_artwork_chunk_cb(struct IAPContext* ctx) {
         /* more to send, ask to call again */
         ctx->artwork_cursor += copy_size;
         ctx->artwork_chunk_index += 1;
-        check_ret(register_completion_callback(ctx, send_artwork_chunk_cb), iap_false);
+        ctx->on_send_complete = send_artwork_chunk_cb;
         print("track artwork left %lu bytes", artwork.size);
     } else {
         /* finished, free artwork */
@@ -658,12 +655,15 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
         } break;
         case IAPExtendedInterfaceCommandID_PlayCurrentSelection: {
             const struct IAPPlayCurrentSelectionPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
-            check_ret(iap_platform_control(ctx, IAPPlatformControl_Play), -IAPAckStatus_ECommandFailed);
-            alloc_response(IAPExtendedIPodAckPayload, payload);
-
-            payload->status = IAPAckStatus_Success;
-            payload->id     = swap_16(command);
-            return IAPExtendedInterfaceCommandID_IPodAck;
+            const struct IAPPlatformPendingControl       pending         = {
+                              .req_command = command,
+                              .ack_command = IAPExtendedInterfaceCommandID_IPodAck,
+                              .trans_id    = ctx->handling_trans_id,
+                              .lingo       = lingo,
+            };
+            iap_platform_control(ctx, IAPPlatformControl_Play, pending);
+            response->ptr = NULL;
+            return 0;
         } break;
         case IAPExtendedInterfaceCommandID_PlayControl: {
             const struct IAPPlayControlPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
@@ -692,7 +692,15 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
                 }
             }
             if(control >= 0) {
-                check_ret(iap_platform_control(ctx, control), -IAPAckStatus_ECommandFailed, "control 0x%02X failed", request_payload->code);
+                const struct IAPPlatformPendingControl pending = {
+                    .req_command = command,
+                    .ack_command = IAPExtendedInterfaceCommandID_IPodAck,
+                    .trans_id    = ctx->handling_trans_id,
+                    .lingo       = lingo,
+                };
+                iap_platform_control(ctx, control, pending);
+                response->ptr = NULL;
+                return 0;
             }
 
             alloc_response(IAPExtendedIPodAckPayload, payload);
@@ -821,9 +829,7 @@ static int32_t handle_in_idps(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             const struct IAPEndIDPSPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
             check_ret(request_payload->status == IAPEndIDPSStatus_Success, -IAPAckStatus_ECommandFailed);
-
-            check_ret(register_completion_callback(ctx, transition_idps_to_auth_cb), iap_false);
-
+            ctx->on_send_complete = transition_idps_to_auth_cb;
             alloc_response(IAPIDPSStatusPayload, payload);
             payload->status = IAPIDPSStatus_Success;
             return IAPGeneralCommandID_IDPSStatus;
@@ -862,8 +868,7 @@ static int32_t handle_in_auth(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             if(request_payload->cert_current_section_index < request_payload->cert_max_section_index) {
                 return ipod_ack(command, IAPAckStatus_Success, response, IAPGeneralCommandID_IPodAck);
             } else {
-                check_ret(register_completion_callback(ctx, send_auth_challenge_sig_cb), iap_false);
-
+                ctx->on_send_complete = send_auth_challenge_sig_cb;
                 alloc_response(IAPAckAccAuthInfoPayload, payload);
                 payload->status = IAPAckAccAuthInfoStatus_Supported;
                 return IAPGeneralCommandID_AckAccessoryAuthenticationInfo;
@@ -876,8 +881,8 @@ static int32_t handle_in_auth(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             alloc_response(IAPAckAccAuthSigPayload, payload);
             payload->status = IAPAckStatus_Success;
 
-            ctx->phase = IAPPhase_Authed;
-            check_ret(register_completion_callback(ctx, send_sample_rate_caps_cb), iap_false);
+            ctx->phase            = IAPPhase_Authed;
+            ctx->on_send_complete = send_sample_rate_caps_cb;
 
             return IAPGeneralCommandID_AckAccessoryAuthenticationStatus;
         } break;
@@ -1102,10 +1107,25 @@ IAPBool _iap_send_packet(struct IAPContext* ctx, uint8_t lingo, uint16_t command
     return iap_true;
 }
 
-static IAPBool send_track_new_audio_attrs_cb(struct IAPContext* ctx) {
+static IAPBool push_active_event(struct IAPContext* ctx, struct IAPActiveEvent event) {
+    if(!ctx->send_busy) {
+        check_ret(event.callback(ctx, &event), iap_false);
+        return iap_true;
+    }
+
+    for(size_t i = 0; i < array_size(ctx->active_events); i += 1) {
+        if(ctx->active_events[i].callback == NULL) {
+            ctx->active_events[i] = event;
+            return iap_true;
+        }
+    }
+    return iap_false;
+}
+
+static IAPBool process_select_sampr(struct IAPContext* ctx, struct IAPActiveEvent* event) {
     struct IAPSpan                            request = _iap_get_buffer_for_send_payload(ctx);
     struct IAPTrackNewAudioAttributesPayload* payload = iap_span_alloc(&request, sizeof(*payload));
-    payload->sample_rate                              = swap_32(ctx->selected_sampr);
+    payload->sample_rate                              = swap_32(event->sampr);
     payload->sound_check                              = 0;
     payload->volume_adjustment                        = 0;
     check_ret(_iap_send_packet(ctx, IAPLingoID_DigitalAudio, IAPDigitalAudioCommandID_TrackNewAudioAttributes, (ctx->trans_id += 1), request.ptr), iap_false);
@@ -1113,11 +1133,36 @@ static IAPBool send_track_new_audio_attrs_cb(struct IAPContext* ctx) {
 }
 
 IAPBool iap_select_sampr(struct IAPContext* ctx, uint32_t sampr) {
-    ctx->selected_sampr = sampr;
-    if(ctx->send_busy) {
-        check_ret(register_completion_callback(ctx, send_track_new_audio_attrs_cb), iap_false);
+    struct IAPActiveEvent event = {
+        .callback = process_select_sampr,
+        .sampr    = sampr,
+    };
+    check_ret(push_active_event(ctx, event), iap_false);
+    return iap_true;
+}
+
+static IAPBool process_control_response(struct IAPContext* ctx, struct IAPActiveEvent* event) {
+    struct IAPSpan                          request = _iap_get_buffer_for_send_payload(ctx);
+    const struct IAPPlatformPendingControl* ctrl    = &event->control_response.control;
+    if(ctrl->lingo == IAPLingoID_ExtendedInterface) {
+        struct IAPExtendedIPodAckPayload* payload = iap_span_alloc(&request, sizeof(*payload));
+        payload->status                           = event->control_response.result ? IAPAckStatus_Success : IAPAckStatus_ECommandFailed;
+        payload->id                               = swap_16(ctrl->req_command);
     } else {
-        check_ret(send_track_new_audio_attrs_cb(ctx), 0);
+        struct IAPIPodAckPayload* payload = iap_span_alloc(&request, sizeof(*payload));
+        payload->status                   = event->control_response.result ? IAPAckStatus_Success : IAPAckStatus_ECommandFailed;
+        payload->id                       = ctrl->req_command;
     }
+    check_ret(_iap_send_packet(ctx, ctrl->lingo, ctrl->ack_command, ctrl->trans_id, request.ptr), iap_false);
+    return iap_true;
+}
+
+IAPBool iap_control_response(struct IAPContext* ctx, struct IAPPlatformPendingControl pending, IAPBool result) {
+    struct IAPActiveEvent event = {
+        .callback         = process_control_response,
+        .control_response = {pending, result},
+    };
+    check_ret(push_active_event(ctx, event), iap_false);
+
     return iap_true;
 }

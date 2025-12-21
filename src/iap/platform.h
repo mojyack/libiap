@@ -43,6 +43,13 @@ enum IAPPlatformControl {
     IAPPlatformControl_Prev,
 };
 
+struct IAPPlatformPendingControl {
+    uint16_t req_command;
+    uint16_t ack_command;
+    int32_t  trans_id;
+    uint8_t  lingo;
+};
+
 /* iap_platform_get_volume */
 struct IAPPlatformVolumeStatus {
     uint8_t volume;
@@ -86,7 +93,7 @@ enum IAPPlatformUSBSpeed iap_platform_get_usb_speed(struct IAPContext* iap_ctx);
 
 /* audio controls */
 IAPBool iap_platform_get_play_status(struct IAPContext* iap_ctx, struct IAPPlatformPlayStatus* status);
-IAPBool iap_platform_control(struct IAPContext* iap_ctx, enum IAPPlatformControl control);
+void    iap_platform_control(struct IAPContext* iap_ctx, enum IAPPlatformControl control, struct IAPPlatformPendingControl pending);
 IAPBool iap_platform_get_volume(struct IAPContext* iap_ctx, struct IAPPlatformVolumeStatus* status);
 IAPBool iap_platform_get_power_status(struct IAPContext* iap_ctx, struct IAPPlatformPowerStatus* status);
 IAPBool iap_platform_get_shuffle_setting(struct IAPContext* iap_ctx, uint8_t* status /* IAPIPodStateShuffleSettingState */);

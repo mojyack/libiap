@@ -18,6 +18,21 @@ struct IAPOpts {
     IAPBool artwork_single_report : 1;
 };
 
+struct IAPActiveEvent;
+
+typedef IAPBool (*IAPActiveEventReadyCallback)(struct IAPContext* ctx, struct IAPActiveEvent* event);
+
+struct IAPActiveEvent {
+    IAPActiveEventReadyCallback callback;
+    union {
+        uint32_t sampr;
+        struct {
+            struct IAPPlatformPendingControl control;
+            IAPBool                          result;
+        } control_response;
+    };
+};
+
 struct IAPContext {
     /* set by user */
     void*          platform; /* opaque to platform functions */
@@ -32,7 +47,10 @@ struct IAPContext {
     size_t   send_buf_sending_range_begin;
     size_t   send_buf_sending_range_end;
     /* _iap_send_next_report */
+    /* for library-oriented, manageable events */
     IAPOnSendComplete on_send_complete;
+    /* for user-oriented, unexpectable events */
+    struct IAPActiveEvent active_events[2];
     /* _iap_feed_packet */
     int32_t handling_trans_id;
     /* iap.c */
@@ -43,7 +61,6 @@ struct IAPContext {
     int32_t                   artwork_trans_id;
     uint8_t                   artwork_data_lingo;
     uint16_t                  artwork_data_command;
-    uint32_t                  selected_sampr;
     /* notification.c */
     /* DisplayRemote::SetRemoteEventNotification */
     uint32_t enabled_notifications_3;
