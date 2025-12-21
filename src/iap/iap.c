@@ -580,8 +580,11 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             if(request_payload->type == IAPDatabaseType_Track) {
                 struct IAPPlatformPlayStatus status;
                 check_ret(iap_platform_get_play_status(ctx, &status), -IAPAckStatus_ECommandFailed);
-                alloc_response(IAPRetNumPlayingTracksPayload, payload);
-                count = status.state == IAPIPodStatePlayStatus_PlaybackStopped ? 0 : status.track_count;
+                /* track_count is invalid while stopped.
+                 * return non-zero dummy value in this case, because reporting zero tracks
+                 * may cause empty library error. */
+                /* TODO: maybe add dedicated platform callback? */
+                count = status.state == IAPIPodStatePlayStatus_PlaybackStopped ? 99 : status.track_count;
             } else {
                 warn("unsupported type 0x%02X", request_payload->type);
                 count = 0;
