@@ -102,9 +102,9 @@ struct IAPIPodStateShuffleSettingPayload {
 } __attribute__((packed));
 
 enum IAPIPodStateRepeatSettingState {
-    IAPIPodStateRepeatSettingState_Off    = 0x00,
-    IAPIPodStateRepeatSettingState_Tracks = 0x01,
-    IAPIPodStateRepeatSettingState_Albums = 0x02,
+    IAPIPodStateRepeatSettingState_Off = 0x00,
+    IAPIPodStateRepeatSettingState_One = 0x01,
+    IAPIPodStateRepeatSettingState_All = 0x02,
 };
 
 struct IAPIPodStateRepeatSettingPayload {
