@@ -815,6 +815,13 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             payload->id     = swap_16(command);
             return IAPExtendedInterfaceCommandID_IPodAck;
         } break;
+        case IAPExtendedInterfaceCommandID_GetColorDisplayImageLimits: {
+            alloc_response(IAPColorDisplayImageLimit, payload);
+            payload->max_width    = 0;
+            payload->max_height   = 0;
+            payload->pixel_format = IAPArtworkPixelFormats_RGB565LE;
+            return IAPExtendedInterfaceCommandID_ReturnColorDisplayImageLimits;
+        } break;
         }
         break;
     case IAPLingoID_DigitalAudio:
