@@ -822,6 +822,13 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             payload->id     = swap_16(command);
             return IAPExtendedInterfaceCommandID_IPodAck;
         } break;
+        case IAPExtendedInterfaceCommandID_SelectSortDBRecord: {
+            /* ignored */
+            alloc_response(IAPExtendedIPodAckPayload, payload);
+            payload->status = IAPAckStatus_Success;
+            payload->id     = swap_16(command);
+            return IAPExtendedInterfaceCommandID_IPodAck;
+        } break;
         case IAPExtendedInterfaceCommandID_GetColorDisplayImageLimits: {
             alloc_response(IAPColorDisplayImageLimit, payload);
             payload->max_width    = 0;
