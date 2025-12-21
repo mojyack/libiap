@@ -291,6 +291,10 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
             IAP_LOGF("  id=%s", _iap_command_str(lingo, payload->id));
             IAP_LOGF("  status=0x%02X", payload->status);
         } break;
+        case IAPGeneralCommandID_ReturnIPodSoftwareVersion: {
+            span_read(IAPReturnIPodSoftwareVersionPayload);
+            IAP_LOGF("  version=%u.%u.%u", payload->major, payload->minor, payload->revision);
+        } break;
         case IAPGeneralCommandID_ReturnIPodSerialNum: {
             IAP_LOGF("  serial=%s", _iap_span_as_str(&span));
         } break;

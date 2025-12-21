@@ -167,6 +167,13 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
     switch(lingo) {
     case IAPLingoID_General:
         switch(command) {
+        case IAPGeneralCommandID_RequestIPodSoftwareVersion: {
+            alloc_response(IAPReturnIPodSoftwareVersionPayload, payload);
+            payload->major    = 18;
+            payload->minor    = 7;
+            payload->revision = 2;
+            return IAPGeneralCommandID_ReturnIPodSoftwareVersion;
+        } break;
         case IAPGeneralCommandID_RequestIPodSerialNum: {
             check_ret(iap_platform_get_ipod_serial_num(ctx, response), -IAPAckStatus_ECommandFailed);
             return IAPGeneralCommandID_ReturnIPodSerialNum;
