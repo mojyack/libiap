@@ -176,6 +176,37 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             payload->max_payload_size = swap_16(HID_BUFFER_SIZE - 1 /*sync*/ - 1 /*sof*/ - 3 /*length*/ - 1 /*checksum*/);
             return IAPGeneralCommandID_ReturnTransportMaxPayloadSize;
         } break;
+        case IAPGeneralCommandID_RequestLingoProtocolVersion: {
+            static const struct {
+                uint8_t major;
+                uint8_t minor;
+            } table[] = {
+                [IAPLingoID_General]            = {1, 9},
+                [IAPLingoID_Microphone]         = {1, 1},
+                [IAPLingoID_SimpleRemote]       = {1, 4},
+                [IAPLingoID_DisplayRemote]      = {1, 5},
+                [IAPLingoID_ExtendedInterface]  = {1, 14},
+                [IAPLingoID_AccessoryPower]     = {1, 1},
+                [IAPLingoID_USBHostMode]        = {1, 0},
+                [IAPLingoID_RFTuner]            = {1, 1},
+                [IAPLingoID_AccessoryEqualizer] = {1, 0},
+                [IAPLingoID_Sports]             = {1, 1},
+                [IAPLingoID_DigitalAudio]       = {1, 3},
+                [IAPLingoID_Storage]            = {1, 2},
+                [IAPLingoID_IPodOut]            = {1, 0},
+                [IAPLingoID_Location]           = {1, 0},
+            };
+
+            const struct IAPRequestLingoProtocolVersionPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
+            check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
+            check_ret(request_payload->lingo < array_size(table), -IAPAckStatus_EBadParameter);
+
+            alloc_response(IAPReturnLingoProtocolVersionPayload, payload);
+            payload->lingo = request_payload->lingo;
+            payload->major = table[request_payload->lingo].major;
+            payload->minor = table[request_payload->lingo].minor;
+            return IAPGeneralCommandID_ReturnLingoProtocolVersion;
+        } break;
         case IAPGeneralCommandID_SetUIMode: {
             const struct IAPSetUIModePayload* request_payload = iap_span_read(request, sizeof(*request_payload));
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);

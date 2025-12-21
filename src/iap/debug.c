@@ -294,6 +294,15 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
         case IAPGeneralCommandID_ReturnIPodSerialNum: {
             IAP_LOGF("  serial=%s", _iap_span_as_str(&span));
         } break;
+        case IAPGeneralCommandID_RequestLingoProtocolVersion: {
+            span_read(IAPRequestLingoProtocolVersionPayload);
+            IAP_LOGF("  lingo=%s", _iap_lingo_str(payload->lingo));
+        } break;
+        case IAPGeneralCommandID_ReturnLingoProtocolVersion: {
+            span_read(IAPReturnLingoProtocolVersionPayload);
+            IAP_LOGF("  lingo=%s", _iap_lingo_str(payload->lingo));
+            IAP_LOGF("  version=%u.%u", payload->major, payload->minor);
+        } break;
         case IAPGeneralCommandID_ReturnTransportMaxPayloadSize: {
             span_read(IAPReturnTransportMaxPayloadSizePayload);
             IAP_LOGF("  size=%d", swap_16(payload->max_payload_size));
