@@ -728,7 +728,7 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
             span_read(IAPColorDisplayImageLimit);
             IAP_LOGF("  width=%u", swap_16(payload->max_width));
             IAP_LOGF("  height=%u", swap_16(payload->max_height));
-            IAP_LOGF("  format=0x%02X", payload->pixel_format)
+            IAP_LOGF("  format=0x%02X", payload->pixel_format);
         } break;
         }
         break;
