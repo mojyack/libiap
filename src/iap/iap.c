@@ -607,7 +607,7 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             struct IAPPlatformPlayStatus status;
             check_ret(iap_platform_get_play_status(ctx, &status), -IAPAckStatus_ECommandFailed);
             alloc_response(IAPReturnCurrentPlayingTrackIndexPayload, payload);
-            payload->index = swap_32(status.track_index);
+            payload->index = swap_32(status.state == IAPIPodStatePlayStatus_PlaybackStopped ? -1 : status.track_index);
             return IAPExtendedInterfaceCommandID_ReturnCurrentPlayingTrackIndex;
         } break;
         case IAPExtendedInterfaceCommandID_GetIndexedPlayingTrackTitle: {
