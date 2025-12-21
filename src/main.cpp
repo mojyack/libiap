@@ -184,6 +184,7 @@ loop:
     if(revents & POLLOUT) {
         auto& track = ctx.tracks[ctx.current_track];
         if(track.data.empty()) {
+            PRINT("decoding track {}", ctx.current_track);
             unwrap_mut(audio, decode_flac(track.file.data(), false));
             track.data = std::move(audio.data);
         }
