@@ -701,6 +701,17 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
             IAP_LOGF("  mode=%u", payload->mode);
             IAP_LOGF("  roe=%d", payload->restore_on_exit);
         } break;
+        case IAPExtendedInterfaceCommandID_SetDisplayImage: {
+            uint16_t index;
+            check_ret(iap_span_peek_16(&span, &index), );
+            IAP_LOGF("  index=%u", index);
+            if(index == 0) {
+                span_read(IAPSetDisplayImageFirstPayload);
+                IAP_LOGF("  format=%02X", payload->pixel_format);
+                IAP_LOGF("  width=%u", swap_16(payload->pixel_width));
+                IAP_LOGF("  height=%u", swap_16(payload->pixel_height));
+            }
+        } break;
         case IAPExtendedInterfaceCommandID_ReturnNumPlayingTracks: {
             span_read(IAPRetNumPlayingTracksPayload);
             IAP_LOGF("  trakcs=%u", swap_32(payload->num_playing_tracks));

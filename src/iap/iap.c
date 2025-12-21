@@ -798,6 +798,13 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             payload->id     = swap_16(command);
             return IAPExtendedInterfaceCommandID_IPodAck;
         } break;
+        case IAPExtendedInterfaceCommandID_SetDisplayImage: {
+            alloc_response(IAPExtendedIPodAckPayload, payload);
+            payload->status = IAPAckStatus_Success;
+            payload->id     = swap_16(command);
+            /* TODO: pass downloaded image to user */
+            return IAPExtendedInterfaceCommandID_IPodAck;
+        } break;
         case IAPExtendedInterfaceCommandID_GetNumPlayingTracks: {
             struct IAPPlatformPlayStatus status;
             check_ret(iap_platform_get_play_status(ctx, &status), -IAPAckStatus_ECommandFailed);
