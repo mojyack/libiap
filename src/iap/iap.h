@@ -43,8 +43,10 @@ IAPBool _iap_flush_notification(struct IAPContext* ctx);
 
 /* debug.c */
 const char* _iap_lingo_str(uint8_t lingo);
+const char* _iap_command_str(uint8_t lingo, uint16_t command);
 IAPBool     _iap_span_is_str(const struct IAPSpan* span);
 const char* _iap_span_as_str(const struct IAPSpan* span);
+void        _iap_dump_packet(uint8_t lingo, uint16_t command, struct IAPSpan span);
 
 #ifdef __cplusplus
 }

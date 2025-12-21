@@ -175,7 +175,6 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
         case IAPGeneralCommandID_SetUIMode: {
             const struct IAPSetUIModePayload* request_payload = iap_span_read(request, sizeof(*request_payload));
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
-            print("set ui mode 0x%02X", request_payload->ui_mode);
             return ipod_ack(command, IAPAckStatus_Success, response, IAPGeneralCommandID_IPodAck);
         } break;
         case IAPGeneralCommandID_GetIPodOptionsForLingo: {
@@ -184,7 +183,6 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
 
             alloc_response(IAPRetIPodOptionsForLingoPayload, payload);
             payload->lingo_id = request_payload->lingo_id;
-            print("ipod option for %d", request_payload->lingo_id);
             switch(request_payload->lingo_id) {
             case IAPLingoID_SimpleRemote:
                 payload->bits = swap_64(IAPRetIPodOptionsForLingoSimpleRemoteBits_ContextSpecificControls);
@@ -214,13 +212,11 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
         case IAPGeneralCommandID_SetAvailableCurrent: {
             const struct IAPSetAvailableCurrentPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
-            print("available current %u", swap_16(request_payload->current_limit_ma));
             return ipod_ack(command, IAPAckStatus_Success, response, IAPGeneralCommandID_IPodAck);
         } break;
         case IAPGeneralCommandID_SetEventNotification: {
             const struct IAPSetEventNotificationPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
-            print("event notification %lX", swap_64(request_payload->mask));
             return ipod_ack(command, IAPAckStatus_Success, response, IAPGeneralCommandID_IPodAck);
         } break;
         }
@@ -230,7 +226,6 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
         case IAPDisplayRemoteCommandID_SetCurrentEQProfileIndex: {
             const struct IAPSetCurrentEQProfileIndexPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
-            print("set current rq profile index=%d", swap_32(request_payload->index));
             return ipod_ack(command, IAPAckStatus_Success, response, IAPDisplayRemoteCommandID_IPodAck);
         } break;
         case IAPDisplayRemoteCommandID_SetRemoteEventNotification: {
@@ -238,13 +233,11 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
             ctx->notifications_3         = 0;
             ctx->enabled_notifications_3 = swap_32(request_payload->mask);
-            print("set remote event notification 0x%04X", ctx->enabled_notifications_3);
             return ipod_ack(command, IAPAckStatus_Success, response, IAPDisplayRemoteCommandID_IPodAck);
         } break;
         case IAPDisplayRemoteCommandID_GetIPodStateInfo: {
             const struct IAPGetIPodStateInfoPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
-            print("get ipod state info type=0x%02X", request_payload->type);
             check_ret(response->size >= sizeof(struct IAPIPodStatePayload), -IAPAckStatus_EOutOfResource);
             ((struct IAPIPodStatePayload*)response->ptr)->type = request_payload->type;
             switch(request_payload->type) {
@@ -384,7 +377,6 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
         case IAPDisplayRemoteCommandID_GetIndexedPlayingTrackInfo: {
             const struct IAPGetIndexedPlayingTrackInfoPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
-            print("get indexed playing track info type=0x%02X track=%d chapter=%d", request_payload->type, swap_32(request_payload->track_index), swap_16(request_payload->chapter_index));
             check_ret(response->size > sizeof(struct IAPRetIndexedPlayingTrackInfoPayload), -IAPAckStatus_EOutOfResource);
             ((struct IAPRetIndexedPlayingTrackInfoPayload*)response->ptr)->type = request_payload->type;
             switch(request_payload->type) {
@@ -464,11 +456,6 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
         case IAPDisplayRemoteCommandID_GetTrackArtworkTimes: {
             const struct IAPGetTrackArtworkTimesPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
-            print("get track artwork times track=%u format=0x%02X index=%u count=%u",
-                  swap_32(request_payload->track_index),
-                  swap_16(request_payload->format_id),
-                  swap_16(request_payload->artwork_index),
-                  swap_16(request_payload->artwork_count));
             const uint16_t count = swap_16(request_payload->artwork_count);
             check_ret(count == 0 || count == 1, -IAPAckStatus_ECommandFailed, "not implemented");
 
@@ -496,7 +483,6 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
         case IAPExtendedInterfaceCommandID_GetIndexedPlayingTrackInfo: {
             const struct IAPExtendedGetIndexedPlayingTrackInfoPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
-            print("get indexed playing track info type=0x%02X track=%d chapter=%d", request_payload->type, swap_32(request_payload->track_index), swap_16(request_payload->chapter_index));
             check_ret(response->size > sizeof(struct IAPExtendedRetIndexedPlayingTrackInfoPayload), -IAPAckStatus_EOutOfResource);
             ((struct IAPExtendedRetIndexedPlayingTrackInfoPayload*)response->ptr)->type = request_payload->type;
             switch(request_payload->type) {
@@ -581,7 +567,6 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             return 0;
         } break;
         case IAPExtendedInterfaceCommandID_ResetDBSelection: {
-            print("reset db selection");
             alloc_response(IAPExtendedIPodAckPayload, payload);
             payload->status = IAPAckStatus_Success;
             payload->id     = swap_16(command);
@@ -601,7 +586,6 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
                 warn("unsupported type 0x%02X", request_payload->type);
                 count = 0;
             }
-            print("get db records type=0x%02X count=%u", request_payload->type, count);
 
             alloc_response(IAPReturnNumberCategorizedDBRecordsPayload, payload);
             payload->count = swap_32(count);
@@ -664,7 +648,6 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
                 check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
                 ctx->enabled_notifications_4 = play_stage_change_notification_set_mask_to_type_mask(swap_32(request_payload->mask));
             }
-            print("play status change notification 0x%04X", ctx->enabled_notifications_4);
             alloc_response(IAPExtendedIPodAckPayload, payload);
             payload->status = IAPAckStatus_Success;
             payload->id     = swap_16(command);
@@ -682,7 +665,6 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
         case IAPExtendedInterfaceCommandID_PlayControl: {
             const struct IAPPlayControlPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
-            print("play control 0x%02X", request_payload->code);
             static const int enum_table[][2] = {
                 {IAPPlayControlCode_TogglePlayPause, IAPPlatformControl_TogglePlayPause},
                 {IAPPlayControlCode_Stop, IAPPlatformControl_Stop},
@@ -723,7 +705,6 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
         case IAPExtendedInterfaceCommandID_SetShuffle: {
             const struct IAPSetShufflePayload* request_payload = iap_span_read(request, sizeof(*request_payload));
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
-            print("set shuffle 0x%02X", request_payload->mode);
             check_ret(iap_platform_set_shuffle_setting(ctx, request_payload->mode), -IAPAckStatus_ECommandFailed);
 
             alloc_response(IAPExtendedIPodAckPayload, payload);
@@ -739,7 +720,6 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
         case IAPExtendedInterfaceCommandID_SetRepeat: {
             const struct IAPSetRepeatPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
-            print("set repeat 0x%02X", request_payload->mode);
             check_ret(iap_platform_set_repeat_setting(ctx, request_payload->mode), -IAPAckStatus_ECommandFailed);
 
             alloc_response(IAPExtendedIPodAckPayload, payload);
@@ -757,7 +737,6 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
         case IAPExtendedInterfaceCommandID_SetCurrentPlayingTrack: {
             const struct IAPSetCurrentPlayingTrackPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
-            print("set playing track index=%u", swap_32(request_payload->index));
             check_ret(iap_platform_set_playing_track(ctx, swap_32(request_payload->index)), -IAPAckStatus_ECommandFailed);
 
             alloc_response(IAPExtendedIPodAckPayload, payload);
@@ -794,7 +773,6 @@ static int32_t handle_in_connected(struct IAPContext* ctx, uint8_t lingo, uint16
     case IAPLingoID_General:
         switch(command) {
         case IAPGeneralCommandID_StartIDPS: {
-            print("idps started");
             ctx->phase = IAPPhase_IDPS;
             return ipod_ack(command, IAPAckStatus_Success, response, IAPGeneralCommandID_IPodAck);
         } break;
@@ -839,7 +817,6 @@ static int32_t handle_in_idps(struct IAPContext* ctx, uint8_t lingo, uint16_t co
         case IAPGeneralCommandID_EndIDPS: {
             const struct IAPEndIDPSPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
             check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
-            print("end idps status=0x%02X", request_payload->status);
             check_ret(request_payload->status == IAPEndIDPSStatus_Success, -IAPAckStatus_ECommandFailed);
 
             check_ret(register_completion_callback(ctx, transition_idps_to_auth_cb), iap_false);
@@ -999,7 +976,8 @@ IAPBool _iap_feed_packet(struct IAPContext* ctx, const uint8_t* const data, cons
     /* read checksum */
     check_ret(span.size >= request.size + 1 /* checksum */, iap_false);
     const uint8_t checksum = data[request.size]; /* TODO: verify checksum */
-    IAP_LOGF("0x%02X(%s):0x%04X length=%d phase=%d", lingo, _iap_lingo_str(lingo), command, length, ctx->phase);
+    IAP_LOGF("==== acc ====");
+    _iap_dump_packet(lingo, command, request);
 
     /* request handling */
     check_ret(iap_span_read_16(&request, &buf.u16), iap_false);
@@ -1107,6 +1085,15 @@ IAPBool _iap_send_packet(struct IAPContext* ctx, uint8_t lingo, uint16_t command
     }
     checksum *= -1;
     *final_ptr = checksum;
+
+    {
+        IAP_LOGF("==== dev ====");
+        struct IAPSpan payload_span = {
+            .ptr  = _iap_get_buffer_for_send_payload(ctx).ptr - 2,
+            .size = payload_size + 2,
+        };
+        _iap_dump_packet(lingo, command, payload_span);
+    }
 
     check_ret(_iap_send_hid_reports(ctx, ptr - ctx->send_buf, final_ptr - ctx->send_buf + 1 /* include checksum */), iap_false);
     return iap_true;
