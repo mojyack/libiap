@@ -298,6 +298,9 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
         case IAPGeneralCommandID_ReturnIPodSerialNum: {
             IAP_LOGF("  serial=%s", _iap_span_as_str(&span));
         } break;
+        case IAPGeneralCommandID_ReturnIPodModelNum: {
+            IAP_LOGF("  model=%s", _iap_span_as_str(&span));
+        } break;
         case IAPGeneralCommandID_RequestLingoProtocolVersion: {
             span_read(IAPRequestLingoProtocolVersionPayload);
             IAP_LOGF("  lingo=%s", _iap_lingo_str(payload->lingo));

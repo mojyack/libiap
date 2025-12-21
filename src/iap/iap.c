@@ -178,6 +178,11 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             check_ret(iap_platform_get_ipod_serial_num(ctx, response), -IAPAckStatus_ECommandFailed);
             return IAPGeneralCommandID_ReturnIPodSerialNum;
         } break;
+        case IAPGeneralCommandID_RequestIPodModelNum: {
+            static const char* model_num = "MTAY2J/A";
+            check_ret(iap_span_append(response, model_num, strlen(model_num) + 1), -IAPAckStatus_EOutOfResource);
+            return IAPGeneralCommandID_ReturnIPodModelNum;
+        } break;
         case IAPGeneralCommandID_RequestTransportMaxPayloadSize: {
             alloc_response(IAPReturnTransportMaxPayloadSizePayload, payload);
             payload->max_payload_size = swap_16(HID_BUFFER_SIZE - 1 /*sync*/ - 1 /*sof*/ - 3 /*length*/ - 1 /*checksum*/);
