@@ -120,7 +120,7 @@ auto main(const int argc, const char* const* argv) -> int {
     };
     ensure(iap_init_ctx(&iap_ctx));
 
-    ensure(snd_pcm_open(std::inout_ptr(snd), "hw:0,0", SND_PCM_STREAM_PLAYBACK, SND_PCM_NONBLOCK) == 0);
+    ensure(snd_pcm_open(std::inout_ptr(snd), "hw:2,0", SND_PCM_STREAM_PLAYBACK, SND_PCM_NONBLOCK) == 0);
     ensure(snd_pcm_set_params(snd.get(), SND_PCM_FORMAT_S16_LE, SND_PCM_ACCESS_RW_INTERLEAVED, 2, 44100, 0, 50000) == 0);
     const auto pcm_pfds_count = snd_pcm_poll_descriptors_count(snd.get());
 

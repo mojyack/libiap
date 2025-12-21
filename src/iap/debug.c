@@ -266,20 +266,17 @@ const char* _iap_span_as_str(const struct IAPSpan* span) {
     return _iap_span_is_str(span) ? (char*)span->ptr : "(invalid)";
 }
 
-void _iap_dump_packet(uint8_t lingo, uint16_t command, struct IAPSpan span) {
-    uint16_t trans_id;
-    check_act(iap_span_read_16(&span, &trans_id), return);
-
+void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct IAPSpan span) {
     const char* lingo_str   = _iap_lingo_str_or_null(lingo);
     const char* command_str = _iap_command_str_or_null(lingo, command);
     if(lingo_str == NULL) {
-        IAP_LOGF("?(0x%02X) trans=%u", lingo, trans_id);
+        IAP_LOGF("?(0x%02X) trans=%d", lingo, trans_id);
         return;
     } else if(command_str == NULL) {
-        IAP_LOGF("%s:?(0x%02X) trans=%u", lingo_str, command, trans_id);
+        IAP_LOGF("%s:?(0x%02X) trans=%d", lingo_str, command, trans_id);
         return;
     } else {
-        IAP_LOGF("%s:%s trans=%u", lingo_str, command_str, trans_id);
+        IAP_LOGF("%s:%s trans=%d", lingo_str, command_str, trans_id);
     }
 
 #define span_read(Type)                                                  \
@@ -300,6 +297,17 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, struct IAPSpan span) {
         case IAPGeneralCommandID_ReturnTransportMaxPayloadSize: {
             span_read(IAPReturnTransportMaxPayloadSizePayload);
             IAP_LOGF("  size=%d", swap_16(payload->max_payload_size));
+        } break;
+        case IAPGeneralCommandID_IdentifyDeviceLingoes: {
+            span_read(IAPIdentifyDeviceLingoesPayload);
+            uint32_t bits = swap_32(payload->lingoes_bits);
+            for(int i = 0; i < 16; i += 1) {
+                if(bits & (1u << i)) {
+                    IAP_LOGF("  supports %s", _iap_lingo_str(i));
+                }
+            }
+            IAP_LOGF("  option=0x%02X", swap_32(payload->options));
+            IAP_LOGF("  device_id=0x%04X", swap_32(payload->device_id));
         } break;
         case IAPGeneralCommandID_SetUIMode: {
             span_read(IAPSetUIModePayload);

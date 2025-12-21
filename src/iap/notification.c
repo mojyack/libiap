@@ -99,28 +99,28 @@ static uint8_t play_status_to_extended(uint8_t status) {
     return IAPPlayStatusChangeNotificationPlaybackStatusExtendedStates_Stopped;
 }
 
-#define send_notify_3(PayloadType, StateType, set)                                                                                                                   \
-    if(ctx->enabled_notifications_3 & ctx->notifications_3 & (1 << StateType)) {                                                                                     \
-        print("notification " #StateType);                                                                                                                           \
-        struct PayloadType* payload = iap_span_alloc(&request, sizeof(*payload));                                                                                    \
-        check_ret(payload != NULL, iap_false);                                                                                                                       \
-        payload->type = StateType;                                                                                                                                   \
-        set;                                                                                                                                                         \
-        check_ret(_iap_send_packet(ctx, IAPLingoID_DisplayRemote, IAPDisplayRemoteCommandID_RemoteEventNotification, (ctx->trans_id += 1), request.ptr), iap_false); \
-        ctx->notifications_3 &= ~(1 << StateType);                                                                                                                   \
-        return iap_true;                                                                                                                                             \
+#define send_notify_3(PayloadType, StateType, set)                                                                                                                      \
+    if(ctx->enabled_notifications_3 & ctx->notifications_3 & (1 << StateType)) {                                                                                        \
+        print("notification " #StateType);                                                                                                                              \
+        struct PayloadType* payload = iap_span_alloc(&request, sizeof(*payload));                                                                                       \
+        check_ret(payload != NULL, iap_false);                                                                                                                          \
+        payload->type = StateType;                                                                                                                                      \
+        set;                                                                                                                                                            \
+        check_ret(_iap_send_packet(ctx, IAPLingoID_DisplayRemote, IAPDisplayRemoteCommandID_RemoteEventNotification, _iap_next_trans_id(ctx), request.ptr), iap_false); \
+        ctx->notifications_3 &= ~(1 << StateType);                                                                                                                      \
+        return iap_true;                                                                                                                                                \
     }
 
-#define send_notify_4(PayloadType, StateType, set)                                                                                                                                \
-    if(ctx->enabled_notifications_4 & ctx->notifications_4 & (1 << StateType)) {                                                                                                  \
-        print("notification " #StateType);                                                                                                                                        \
-        struct PayloadType* payload = iap_span_alloc(&request, sizeof(*payload));                                                                                                 \
-        check_ret(payload != NULL, iap_false);                                                                                                                                    \
-        payload->type = StateType;                                                                                                                                                \
-        set;                                                                                                                                                                      \
-        check_ret(_iap_send_packet(ctx, IAPLingoID_ExtendedInterface, IAPExtendedInterfaceCommandID_PlayStatusChangeNotification, (ctx->trans_id += 1), request.ptr), iap_false); \
-        ctx->notifications_4 &= ~(1 << StateType);                                                                                                                                \
-        return iap_true;                                                                                                                                                          \
+#define send_notify_4(PayloadType, StateType, set)                                                                                                                                   \
+    if(ctx->enabled_notifications_4 & ctx->notifications_4 & (1 << StateType)) {                                                                                                     \
+        print("notification " #StateType);                                                                                                                                           \
+        struct PayloadType* payload = iap_span_alloc(&request, sizeof(*payload));                                                                                                    \
+        check_ret(payload != NULL, iap_false);                                                                                                                                       \
+        payload->type = StateType;                                                                                                                                                   \
+        set;                                                                                                                                                                         \
+        check_ret(_iap_send_packet(ctx, IAPLingoID_ExtendedInterface, IAPExtendedInterfaceCommandID_PlayStatusChangeNotification, _iap_next_trans_id(ctx), request.ptr), iap_false); \
+        ctx->notifications_4 &= ~(1 << StateType);                                                                                                                                   \
+        return iap_true;                                                                                                                                                             \
     }
 
 IAPBool _iap_flush_notification(struct IAPContext* ctx) {

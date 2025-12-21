@@ -10,6 +10,12 @@
 #include "spec/iap.h"
 #include "unaligned.h"
 
+enum TransIDSupport {
+    TransIDUnknown,
+    TransIDSupported,
+    TransIDNotSupported,
+};
+
 IAPBool iap_init_ctx(struct IAPContext* ctx) {
     const IAPBool  hs                      = iap_platform_get_usb_speed(ctx) == IAPPlatformUSBSpeed_High;
     const uint16_t max_input_hid_desc_size = hs ? 0x02FF : 0x3F;
@@ -27,6 +33,7 @@ IAPBool iap_init_ctx(struct IAPContext* ctx) {
         ctx->active_events[i].callback = NULL;
     }
     ctx->handling_trans_id       = -1;
+    ctx->trans_id_support        = TransIDUnknown;
     ctx->artwork.valid           = iap_false;
     ctx->trans_id                = 0;
     ctx->enabled_notifications_3 = 0;
@@ -779,10 +786,32 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
     return -IAPAckStatus_EUnknownID;
 }
 
+static IAPBool transition_idps_to_auth_cb(struct IAPContext* ctx) {
+    print("starting accessory authentication");
+    ctx->phase = IAPPhase_Auth;
+    check_ret(_iap_send_packet(ctx, IAPLingoID_General, IAPGeneralCommandID_GetAccessoryAuthenticationInfo, _iap_next_trans_id(ctx), _iap_get_buffer_for_send_payload(ctx).ptr), iap_false);
+    return iap_true;
+}
+
 static int32_t handle_in_connected(struct IAPContext* ctx, uint8_t lingo, uint16_t command, struct IAPSpan* request, struct IAPSpan* response) {
     switch(lingo) {
     case IAPLingoID_General:
         switch(command) {
+        case IAPGeneralCommandID_IdentifyDeviceLingoes: {
+            const struct IAPIdentifyDeviceLingoesPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
+            check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
+            switch(swap_32(request_payload->options)) {
+            case IAPIdentifyDeviceLingoesOptions_NoAuth:
+                break;
+            case IAPIdentifyDeviceLingoesOptions_DeferAuth:
+                warn("unsupported option 0x%04X", swap_32(request_payload->options));
+                return -IAPAckStatus_EBadParameter;
+            case IAPIdentifyDeviceLingoesOptions_ImmediateAuth:
+                ctx->on_send_complete = transition_idps_to_auth_cb;
+                break;
+            }
+            return ipod_ack(command, IAPAckStatus_Success, response, IAPGeneralCommandID_IPodAck);
+        } break;
         case IAPGeneralCommandID_StartIDPS: {
             ctx->phase = IAPPhase_IDPS;
             return ipod_ack(command, IAPAckStatus_Success, response, IAPGeneralCommandID_IPodAck);
@@ -793,33 +822,10 @@ static int32_t handle_in_connected(struct IAPContext* ctx, uint8_t lingo, uint16
     return -IAPAckStatus_EUnknownID;
 }
 
-static IAPBool transition_idps_to_auth_cb(struct IAPContext* ctx) {
-    print("starting accessory authentication");
-    check_ret(ctx->phase == IAPPhase_IDPS, iap_false);
-    ctx->phase = IAPPhase_Auth;
-    check_ret(_iap_send_packet(ctx, IAPLingoID_General, IAPGeneralCommandID_GetAccessoryAuthenticationInfo, (ctx->trans_id += 1), _iap_get_buffer_for_send_payload(ctx).ptr), iap_false);
-    return iap_true;
-}
-
 static int32_t handle_in_idps(struct IAPContext* ctx, uint8_t lingo, uint16_t command, struct IAPSpan* request, struct IAPSpan* response) {
     switch(lingo) {
     case IAPLingoID_General:
         switch(command) {
-        case IAPGeneralCommandID_IdentifyDeviceLingoes: {
-            const struct IAPIdentifyDeviceLingoesPayload* request_payload = iap_span_read(request, sizeof(*request_payload));
-            check_ret(request_payload != NULL, -IAPAckStatus_EBadParameter);
-
-            const uint32_t bits = swap_32(request_payload->lingoes_bits);
-            print("acc supported lingos:");
-            for(int i = 0; i < 32; i += 1) {
-                if(bits & (1 << i)) {
-                    IAP_LOGF("  %s", _iap_lingo_str(i));
-                }
-            }
-            print("auth_option=%02X device_id=%08X\n", swap_32(request_payload->options), swap_32(request_payload->device_id));
-            /* TODO: wip */
-            return ipod_ack(command, IAPAckStatus_Success, response, IAPGeneralCommandID_IPodAck);
-        } break;
         case IAPGeneralCommandID_SetFIDTokenValues: {
             const int ret = _iap_hanlde_set_fid_token_values(request, response);
             check_ret(ret == 0, ret);
@@ -846,13 +852,13 @@ static IAPBool send_auth_challenge_sig_cb(struct IAPContext* ctx) {
     struct IAPGetAccAuthSigPayload2p0* payload = iap_span_alloc(&request, sizeof(*payload));
     check_ret(payload != NULL, iap_false);
     payload->retry = 1;
-    check_ret(_iap_send_packet(ctx, IAPLingoID_General, IAPGeneralCommandID_GetAccessoryAuthenticationSignature, (ctx->trans_id += 1), request.ptr), iap_false);
+    check_ret(_iap_send_packet(ctx, IAPLingoID_General, IAPGeneralCommandID_GetAccessoryAuthenticationSignature, _iap_next_trans_id(ctx), request.ptr), iap_false);
     return iap_true;
 }
 
 static IAPBool send_sample_rate_caps_cb(struct IAPContext* ctx) {
     struct IAPSpan request = _iap_get_buffer_for_send_payload(ctx);
-    check_ret(_iap_send_packet(ctx, IAPLingoID_DigitalAudio, IAPDigitalAudioCommandID_GetAccessorySampleRateCaps, (ctx->trans_id += 1), request.ptr), iap_false);
+    check_ret(_iap_send_packet(ctx, IAPLingoID_DigitalAudio, IAPDigitalAudioCommandID_GetAccessorySampleRateCaps, _iap_next_trans_id(ctx), request.ptr), iap_false);
     return iap_true;
 }
 
@@ -984,12 +990,28 @@ IAPBool _iap_feed_packet(struct IAPContext* ctx, const uint8_t* const data, cons
     /* read checksum */
     check_ret(span.size >= request.size + 1 /* checksum */, iap_false);
     const uint8_t checksum = data[request.size]; /* TODO: verify checksum */
-    IAP_LOGF("==== acc ====");
-    _iap_dump_packet(lingo, command, request);
 
     /* request handling */
-    check_ret(iap_span_read_16(&request, &buf.u16), iap_false);
-    ctx->handling_trans_id = buf.u16;
+    if(ctx->trans_id_support == TransIDUnknown) {
+        check_ret(lingo == IAPLingoID_General, iap_false);
+        if(command == IAPGeneralCommandID_StartIDPS) {
+            ctx->trans_id_support = TransIDSupported;
+        }
+        if(command == IAPGeneralCommandID_IdentifyDeviceLingoes) {
+            ctx->trans_id_support  = TransIDNotSupported;
+            ctx->handling_trans_id = -1;
+        } else {
+            warn("the first command(%02X:%04X) must be StartIDPS or IdentifyDeviceLingoes", lingo, command);
+            return iap_false;
+        }
+    }
+    if(ctx->trans_id_support == TransIDSupported) {
+        check_ret(iap_span_read_16(&request, &buf.u16), iap_false);
+        ctx->handling_trans_id = buf.u16;
+    }
+
+    IAP_LOGF("==== acc ====");
+    _iap_dump_packet(lingo, command, ctx->handling_trans_id, request);
 
     struct IAPSpan response = _iap_get_buffer_for_send_payload(ctx);
     int32_t        ret      = handle_command(ctx, lingo, command, &request, &response);
@@ -1051,9 +1073,26 @@ struct IAPSpan _iap_get_buffer_for_send_payload(struct IAPContext* ctx) {
     return buf;
 }
 
+int32_t _iap_next_trans_id(struct IAPContext* ctx) {
+    if(ctx->trans_id_support == TransIDSupported) {
+        return ctx->trans_id += 1;
+    } else {
+        return -1;
+    }
+}
+
 IAPBool _iap_send_packet(struct IAPContext* ctx, uint8_t lingo, uint16_t command, int32_t trans_id, uint8_t* final_ptr) {
     uint8_t* ptr          = _iap_get_buffer_for_send_payload(ctx).ptr;
     size_t   payload_size = final_ptr - ptr;
+
+    {
+        IAP_LOGF("==== dev ====");
+        struct IAPSpan payload_span = {
+            .ptr  = _iap_get_buffer_for_send_payload(ctx).ptr,
+            .size = payload_size,
+        };
+        _iap_dump_packet(lingo, command, trans_id, payload_span);
+    }
 
 #define pack_8(val) \
     ptr -= 1;       \
@@ -1094,15 +1133,6 @@ IAPBool _iap_send_packet(struct IAPContext* ctx, uint8_t lingo, uint16_t command
     checksum *= -1;
     *final_ptr = checksum;
 
-    {
-        IAP_LOGF("==== dev ====");
-        struct IAPSpan payload_span = {
-            .ptr  = _iap_get_buffer_for_send_payload(ctx).ptr - 2,
-            .size = payload_size + 2,
-        };
-        _iap_dump_packet(lingo, command, payload_span);
-    }
-
     check_ret(_iap_send_hid_reports(ctx, ptr - ctx->send_buf, final_ptr - ctx->send_buf + 1 /* include checksum */), iap_false);
     return iap_true;
 }
@@ -1128,7 +1158,7 @@ static IAPBool process_select_sampr(struct IAPContext* ctx, struct IAPActiveEven
     payload->sample_rate                              = swap_32(event->sampr);
     payload->sound_check                              = 0;
     payload->volume_adjustment                        = 0;
-    check_ret(_iap_send_packet(ctx, IAPLingoID_DigitalAudio, IAPDigitalAudioCommandID_TrackNewAudioAttributes, (ctx->trans_id += 1), request.ptr), iap_false);
+    check_ret(_iap_send_packet(ctx, IAPLingoID_DigitalAudio, IAPDigitalAudioCommandID_TrackNewAudioAttributes, _iap_next_trans_id(ctx), request.ptr), iap_false);
     return iap_true;
 }
 
