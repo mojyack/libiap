@@ -1077,8 +1077,7 @@ IAPBool _iap_feed_packet(struct IAPContext* ctx, const uint8_t* const data, cons
         check_ret(lingo == IAPLingoID_General, iap_false);
         if(command == IAPGeneralCommandID_StartIDPS) {
             ctx->trans_id_support = TransIDSupported;
-        }
-        if(command == IAPGeneralCommandID_IdentifyDeviceLingoes) {
+        } else if(command == IAPGeneralCommandID_IdentifyDeviceLingoes) {
             ctx->trans_id_support  = TransIDNotSupported;
             ctx->handling_trans_id = -1;
         } else {
