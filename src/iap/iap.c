@@ -503,6 +503,13 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             payload->image_height = swap_16(IAP_ARTWORK_HEIGHT);
             return IAPDisplayRemoteCommandID_RetArtworkFormats;
         } break;
+        case IAPDisplayRemoteCommandID_GetNumPlayingTracks: {
+            struct IAPPlatformPlayStatus status;
+            check_ret(iap_platform_get_play_status(ctx, &status), -IAPAckStatus_ECommandFailed);
+            alloc_response(IAPRetNumPlayingTracksPayload, payload);
+            payload->num_playing_tracks = swap_32(status.track_count);
+            return IAPDisplayRemoteCommandID_RetNumPlayingTracks;
+        } break;
         case IAPDisplayRemoteCommandID_GetTrackArtworkData: {
             const int32_t ret = start_artwork_data(ctx, request, iap_false);
             check_ret(ret == 0, ret);

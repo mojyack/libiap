@@ -507,6 +507,10 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
             } break;
             }
         } break;
+        case IAPDisplayRemoteCommandID_RetNumPlayingTracks: {
+            span_read(IAPRetNumPlayingTracksPayload);
+            IAP_LOGF("  tracks=%u", swap_32(payload->num_playing_tracks));
+        } break;
         case IAPDisplayRemoteCommandID_RetArtworkFormats: {
             while(span.size >= sizeof(struct IAPArtworkFormat)) {
                 const struct IAPArtworkFormat* format = iap_span_read(&span, sizeof(*format));
@@ -714,7 +718,7 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
         } break;
         case IAPExtendedInterfaceCommandID_ReturnNumPlayingTracks: {
             span_read(IAPRetNumPlayingTracksPayload);
-            IAP_LOGF("  trakcs=%u", swap_32(payload->num_playing_tracks));
+            IAP_LOGF("  tracks=%u", swap_32(payload->num_playing_tracks));
         } break;
         case IAPExtendedInterfaceCommandID_SetCurrentPlayingTrack: {
             span_read(IAPSetCurrentPlayingTrackPayload);
