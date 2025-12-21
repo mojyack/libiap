@@ -345,7 +345,7 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
                 struct IAPPlatformPlayStatus status;
                 check_ret(iap_platform_get_play_status(ctx, &status), -IAPAckStatus_ECommandFailed);
                 alloc_response(IAPIPodStateTrackTimePositionSecPayload, payload);
-                payload->position_s = swap_32(status.track_pos_ms / 1000);
+                payload->position_s = swap_16(status.track_pos_ms / 1000);
                 return IAPDisplayRemoteCommandID_RetIPodStateInfo;
             } break;
             case IAPIPodStateType_AbsoluteVolume: {
