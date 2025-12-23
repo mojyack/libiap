@@ -17,8 +17,7 @@ enum TransIDSupport {
 };
 
 IAPBool iap_init_ctx(struct IAPContext* ctx) {
-    const IAPBool  hs                      = iap_platform_get_usb_speed(ctx) == IAPPlatformUSBSpeed_High;
-    const uint16_t max_input_hid_desc_size = hs ? 0x02FF : 0x3F;
+    const uint16_t max_input_hid_desc_size = ctx->opts.usb_highspeed ? 0x02FF : 0x3F;
 
     ctx->hid_recv_buf = iap_platform_malloc(ctx, HID_BUFFER_SIZE, 0);
     check_ret(ctx->hid_recv_buf != NULL, iap_false);

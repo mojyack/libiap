@@ -56,9 +56,8 @@ static struct ReportSize output_report_size_table_hs[] = {
 };
 
 static int find_output_report_size(struct IAPContext* ctx, uint8_t id) {
-    const IAPBool            hs  = iap_platform_get_usb_speed(ctx) == IAPPlatformUSBSpeed_High;
-    const struct ReportSize* ptr = hs ? output_report_size_table_hs : output_report_size_table_fs;
-    const size_t             len = hs ? array_size(output_report_size_table_hs) : array_size(output_report_size_table_fs);
+    const struct ReportSize* ptr = ctx->opts.usb_highspeed ? output_report_size_table_hs : output_report_size_table_fs;
+    const size_t             len = ctx->opts.usb_highspeed ? array_size(output_report_size_table_hs) : array_size(output_report_size_table_fs);
     for(size_t i = 0; i < len; i += 1) {
         if(ptr[i].id == id) {
             return ptr[i].size;
@@ -121,9 +120,8 @@ IAPBool _iap_send_hid_reports(struct IAPContext* ctx, size_t begin, size_t end) 
 }
 
 static const struct ReportSize* find_optimal_report_size(struct IAPContext* ctx, size_t size) {
-    const IAPBool            hs  = iap_platform_get_usb_speed(ctx) == IAPPlatformUSBSpeed_High;
-    const struct ReportSize* ptr = hs ? input_report_size_table_hs : input_report_size_table_fs;
-    const size_t             len = hs ? array_size(input_report_size_table_hs) : array_size(input_report_size_table_fs);
+    const struct ReportSize* ptr = ctx->opts.usb_highspeed ? input_report_size_table_hs : input_report_size_table_fs;
+    const size_t             len = ctx->opts.usb_highspeed ? array_size(input_report_size_table_hs) : array_size(input_report_size_table_fs);
     for(size_t i = 0; i < len; i += 1) {
         if(ptr[i].size >= size + 1 /* link control byte*/) {
             return &ptr[i];

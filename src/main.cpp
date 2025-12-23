@@ -14,12 +14,20 @@
 #include "iap/spec/iap.h"
 #include "macros/autoptr.hpp"
 #include "macros/unwrap.hpp"
+#include "util/fd.hpp"
 #include "util/hexdump.hpp"
 #include "util/split.hpp"
 
 declare_autoptr(SndPCM, snd_pcm_t, snd_pcm_close);
 
 namespace {
+auto is_ipod_hid_hs() -> std::optional<bool> {
+    const auto fd = FileDescriptor(open("/sys/module/g_ipod_hid/parameters/usb_hs", O_RDONLY));
+    ensure(fd.as_handle() >= 0);
+    unwrap(data, fd.read<char>());
+    return data == 'Y';
+}
+
 auto time_now() -> std::chrono::system_clock::time_point {
     return std::chrono::system_clock::now();
 }
@@ -111,11 +119,13 @@ auto Context::skip_track(const int diff) -> bool {
 auto main(const int argc, const char* const* argv) -> int {
     ctx.fd = open("/dev/iap0", O_RDWR);
     ensure(ctx.fd >= 0);
+    unwrap(hs, is_ipod_hid_hs());
     iap_ctx = IAPContext{
         .platform = &ctx,
         .opts     = {
+                .usb_highspeed         = hs,
                 .ignore_hid_report_id  = 1,
-                .artwork_single_report = iap_platform_get_usb_speed(nullptr) == IAPPlatformUSBSpeed_Full,
+                .artwork_single_report = !hs,
         },
     };
     ensure(iap_init_ctx(&iap_ctx));
