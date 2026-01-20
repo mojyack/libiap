@@ -710,7 +710,8 @@ auto main(const int argc, const char* const* argv) -> int {
 
     if(!authed) {
         auth_task.resume();
-    } else if(!no_audio) {
+    }
+    if(!no_audio) {
         ensure(start_audio(48000));
     }
 
