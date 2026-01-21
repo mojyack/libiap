@@ -532,14 +532,14 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
         } break;
         case IAPDisplayRemoteCommandID_GetIndexedPlayingTrackInfo: {
             read_request(IAPGetIndexedPlayingTrackInfoPayload);
-            check_ret(response_span->size > sizeof(struct IAPRetIndexedPlayingTrackInfoPayload), -IAPAckStatus_EOutOfResource);
+            check_ret(response_span->size > sizeof(struct IAPRetIndexedPlayingTrackInfoPayload), -IAPAckStatus_EBadParameter);
             ((struct IAPRetIndexedPlayingTrackInfoPayload*)response_span->ptr)->type = request->type;
             switch(request->type) {
             case IAPIndexedPlayingTrackInfoType_TrackCapsInfo: {
                 uint32_t                    length;
                 uint32_t                    caps;
                 struct IAPPlatformTrackInfo info = {.total_ms = &length, .caps = &caps};
-                check_ret(iap_platform_get_indexed_track_info(ctx, swap_32(request->track_index), &info), -IAPAckStatus_ECommandFailed);
+                check_ret(iap_platform_get_indexed_track_info(ctx, swap_32(request->track_index), &info), -IAPAckStatus_EBadParameter);
                 alloc_response(IAPRetIndexedPlayingTrackInfoTrackCapsInfoPayload);
                 response->track_caps     = swap_32(caps);
                 response->track_total_ms = swap_32(length);
@@ -552,13 +552,13 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             case IAPIndexedPlayingTrackInfoType_ArtistName: {
                 alloc_response(IAPRetIndexedPlayingTrackInfoArtistNamePayload);
                 struct IAPPlatformTrackInfo info = {.artist = response_span};
-                check_ret(iap_platform_get_indexed_track_info(ctx, swap_32(request->track_index), &info), -IAPAckStatus_ECommandFailed);
+                check_ret(iap_platform_get_indexed_track_info(ctx, swap_32(request->track_index), &info), -IAPAckStatus_EBadParameter);
                 return IAPDisplayRemoteCommandID_RetIndexedPlayingTrackInfo;
             } break;
             case IAPIndexedPlayingTrackInfoType_AlbumName: {
                 alloc_response(IAPRetIndexedPlayingTrackInfoAlbumNamePayload);
                 struct IAPPlatformTrackInfo info = {.album = response_span};
-                check_ret(iap_platform_get_indexed_track_info(ctx, swap_32(request->track_index), &info), -IAPAckStatus_ECommandFailed);
+                check_ret(iap_platform_get_indexed_track_info(ctx, swap_32(request->track_index), &info), -IAPAckStatus_EBadParameter);
                 return IAPDisplayRemoteCommandID_RetIndexedPlayingTrackInfo;
             } break;
             case IAPIndexedPlayingTrackInfoType_GenreName: {
@@ -569,13 +569,13 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             case IAPIndexedPlayingTrackInfoType_TrackTitle: {
                 alloc_response(IAPRetIndexedPlayingTrackInfoTrackTitlePayload);
                 struct IAPPlatformTrackInfo info = {.title = response_span};
-                check_ret(iap_platform_get_indexed_track_info(ctx, swap_32(request->track_index), &info), -IAPAckStatus_ECommandFailed);
+                check_ret(iap_platform_get_indexed_track_info(ctx, swap_32(request->track_index), &info), -IAPAckStatus_EBadParameter);
                 return IAPDisplayRemoteCommandID_RetIndexedPlayingTrackInfo;
             } break;
             case IAPIndexedPlayingTrackInfoType_ComposerName: {
                 alloc_response(IAPRetIndexedPlayingTrackInfoComposerNamePayload);
                 struct IAPPlatformTrackInfo info = {.composer = response_span};
-                check_ret(iap_platform_get_indexed_track_info(ctx, swap_32(request->track_index), &info), -IAPAckStatus_ECommandFailed);
+                check_ret(iap_platform_get_indexed_track_info(ctx, swap_32(request->track_index), &info), -IAPAckStatus_EBadParameter);
                 return IAPDisplayRemoteCommandID_RetIndexedPlayingTrackInfo;
             } break;
             case IAPIndexedPlayingTrackInfoType_Lyrics: {
@@ -651,14 +651,14 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
         } break;
         case IAPExtendedInterfaceCommandID_GetIndexedPlayingTrackInfo: {
             read_request(IAPExtendedGetIndexedPlayingTrackInfoPayload);
-            check_ret(response_span->size > sizeof(struct IAPExtendedRetIndexedPlayingTrackInfoPayload), -IAPAckStatus_EOutOfResource);
+            check_ret(response_span->size > sizeof(struct IAPExtendedRetIndexedPlayingTrackInfoPayload), -IAPAckStatus_EBadParameter);
             ((struct IAPExtendedRetIndexedPlayingTrackInfoPayload*)response_span->ptr)->type = request->type;
             switch(request->type) {
             case IAPExtendedIndexedPlayingTrackInfoType_TrackCapsInfo: {
                 uint32_t                    length;
                 uint32_t                    caps;
                 struct IAPPlatformTrackInfo info = {.total_ms = &length, .caps = &caps};
-                check_ret(iap_platform_get_indexed_track_info(ctx, swap_32(request->track_index), &info), -IAPAckStatus_ECommandFailed);
+                check_ret(iap_platform_get_indexed_track_info(ctx, swap_32(request->track_index), &info), -IAPAckStatus_EBadParameter);
                 alloc_response(IAPExtendedRetIndexedPlayingTrackInfoTrackCapsInfoPayload);
                 response->track_caps     = swap_32(caps);
                 response->track_total_ms = swap_32(length);
@@ -673,7 +673,7 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             case IAPExtendedIndexedPlayingTrackInfoType_TrackReleaseDate: {
                 struct IAPDateTime          time;
                 struct IAPPlatformTrackInfo info = {.release_date = &time};
-                check_ret(iap_platform_get_indexed_track_info(ctx, swap_32(request->track_index), &info), -IAPAckStatus_ECommandFailed);
+                check_ret(iap_platform_get_indexed_track_info(ctx, swap_32(request->track_index), &info), -IAPAckStatus_EBadParameter);
                 alloc_response(IAPExtendedRetIndexedPlayingTrackInfoTrackReleaseDatePayload);
                 response->seconds = time.seconds;
                 response->minutes = time.minute;
@@ -706,7 +706,7 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             case IAPExtendedIndexedPlayingTrackInfoType_TrackComposer: {
                 alloc_response(IAPExtendedRetIndexedPlayingTrackInfoTrackComposerPayload);
                 struct IAPPlatformTrackInfo info = {.composer = response_span};
-                check_ret(iap_platform_get_indexed_track_info(ctx, swap_32(request->track_index), &info), -IAPAckStatus_ECommandFailed);
+                check_ret(iap_platform_get_indexed_track_info(ctx, swap_32(request->track_index), &info), -IAPAckStatus_EBadParameter);
                 return IAPExtendedInterfaceCommandID_ReturnIndexedPlayingTrackInfo;
             } break;
             case IAPExtendedIndexedPlayingTrackInfoType_TrackArtworkCount: {
