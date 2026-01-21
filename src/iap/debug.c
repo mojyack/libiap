@@ -83,6 +83,30 @@ static const char* strs_general[] = {
     entry(General, RequestWiFiConnectionInfo),
     entry(General, WiFiConnectionInfo),
 };
+static const char* strs_simple[] = {
+    entry(SimpleRemote, ContextButtonStatus),
+    entry(SimpleRemote, IPodAck),
+    entry(SimpleRemote, ImageButtonStatus),
+    entry(SimpleRemote, VideoButtonStatus),
+    entry(SimpleRemote, AudioButtonStatus),
+    entry(SimpleRemote, IPodOutButtonStatus),
+    entry(SimpleRemote, RotationInputStatus),
+    entry(SimpleRemote, RadioButtonStatus),
+    entry(SimpleRemote, CameraButtonStatus),
+    entry(SimpleRemote, RegisterDescriptor),
+    entry(SimpleRemote, IPodHIDReport),
+    entry(SimpleRemote, AccessoryHIDReport),
+    entry(SimpleRemote, UnregisterDescriptor),
+    entry(SimpleRemote, VoiceOverEvent),
+    entry(SimpleRemote, GetVoiceOverParameter),
+    entry(SimpleRemote, RetVoiceOverParameter),
+    entry(SimpleRemote, SetVoiceOverParameter),
+    entry(SimpleRemote, GetCurrentVoiceOverItemProperty),
+    entry(SimpleRemote, RetCurrentVoiceOverItemProperty),
+    entry(SimpleRemote, SetVoiceOverContext),
+    entry(SimpleRemote, VoiceOverParameterChanged),
+    entry(SimpleRemote, AccessoryAck),
+};
 static const char* strs_display[] = {
     entry(DisplayRemote, IPodAck),
     entry(DisplayRemote, GetCurrentEQProfileIndex),
@@ -221,7 +245,7 @@ static struct {
 } strs[] = {
     entry(General, strs_general, array_size(strs_general)),
     entry(Microphone, NULL, 0),
-    entry(SimpleRemote, NULL, 0),
+    entry(SimpleRemote, strs_simple, array_size(strs_simple)),
     entry(DisplayRemote, strs_display, array_size(strs_display)),
     entry(ExtendedInterface, strs_ext, array_size(strs_ext)),
     entry(AccessoryPower, NULL, 0),
@@ -505,6 +529,25 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
         } break;
         }
         break;
+    case IAPLingoID_SimpleRemote:
+        switch(command) {
+        case IAPSimpleRemoteCommandID_ContextButtonStatus: {
+            uint8_t bits;
+            check_ret(iap_span_read_8(&span, &bits), );
+            IAP_LOGF("  bits0=0x%02X", bits);
+            uint8_t index = 1;
+            while(span.size > 0) {
+                iap_span_read_8(&span, &bits);
+                IAP_LOGF("  bits%d=0x%02X", index, bits);
+                index += 1;
+            }
+        } break;
+        case IAPSimpleRemoteCommandID_IPodAck: {
+            span_read(IAPIPodAckPayload);
+            IAP_LOGF("  id=%s", _iap_command_str(lingo, payload->id));
+            IAP_LOGF("  status=0x%02X", payload->status);
+        } break;
+        }
     case IAPLingoID_DisplayRemote:
         switch(command) {
         case IAPDisplayRemoteCommandID_IPodAck: {
