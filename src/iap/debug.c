@@ -741,6 +741,13 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
             } break;
             }
         } break;
+        case IAPDisplayRemoteCommandID_RetPlayStatus: {
+            span_read(IAPRetPlayStatusPayload);
+            IAP_LOGF("  state=0x%02X", payload->state);
+            IAP_LOGF("  index=%u", swap_32(payload->track_index));
+            IAP_LOGF("  pos=%ums", swap_32(payload->track_pos_ms));
+            IAP_LOGF("  total=%ums", swap_32(payload->track_total_ms));
+        } break;
         case IAPDisplayRemoteCommandID_GetIndexedPlayingTrackInfo: {
             span_read(IAPGetIndexedPlayingTrackInfoPayload);
             IAP_LOGF("  type=0x%02X", payload->type);

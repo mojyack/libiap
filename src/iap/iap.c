@@ -520,6 +520,16 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
                 return -IAPAckStatus_EBadParameter;
             }
         } break;
+        case IAPDisplayRemoteCommandID_GetPlayStatus: {
+            struct IAPPlatformPlayStatus status;
+            check_ret(iap_platform_get_play_status(ctx, &status), -IAPAckStatus_ECommandFailed);
+            alloc_response(IAPRetPlayStatusPayload);
+            response->state          = status.state; /* TODO: convert enum */
+            response->track_index    = swap_32(status.track_index);
+            response->track_pos_ms   = swap_32(status.track_pos_ms);
+            response->track_total_ms = swap_32(status.track_total_ms);
+            return IAPDisplayRemoteCommandID_RetPlayStatus;
+        } break;
         case IAPDisplayRemoteCommandID_GetIndexedPlayingTrackInfo: {
             read_request(IAPGetIndexedPlayingTrackInfoPayload);
             check_ret(response_span->size > sizeof(struct IAPRetIndexedPlayingTrackInfoPayload), -IAPAckStatus_EOutOfResource);
