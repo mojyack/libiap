@@ -435,7 +435,7 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
                     IAP_LOGF("  screen size(inch): %ux%u", swap_16(token->total_screen_width_inches), swap_16(token->total_screen_height_inches));
                     IAP_LOGF("  screen size(pixel): %ux%u", swap_16(token->total_screen_width_pixels), swap_16(token->total_screen_height_pixels));
                     IAP_LOGF("  ipod out size(pixel): %ux%u", swap_16(token->ipod_out_screen_width_pixels), swap_16(token->ipod_out_screen_height_pixels));
-                    IAP_LOGF("  featurel: %X\n", token->screen_feature_mask);
+                    IAP_LOGF("  feature: %X\n", token->screen_feature_mask);
                     IAP_LOGF("  gamma: %u\n", token->screen_gamma_value);
                 } break;
                 case IAPFIDTokenTypes_EAProtocolMetadata: {
@@ -505,6 +505,93 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
         case IAPDisplayRemoteCommandID_SetRemoteEventNotification: {
             span_read(IAPSetRemoteEventNotificationPayload);
             IAP_LOGF("  mask=0x%04X", swap_32(payload->mask));
+        } break;
+        case IAPDisplayRemoteCommandID_RemoteEventNotification: {
+            check_ret(span.size >= 1, );
+            IAP_LOGF("  type=0x%02X", span.ptr[0]);
+            switch(span.ptr[0]) {
+            case IAPIPodStateType_TrackTimePositionMSec: {
+                span_read(IAPIPodStateTrackTimePositionMSecPayload);
+                IAP_LOGF("  position=%ums", swap_32(payload->position_ms));
+            } break;
+            case IAPIPodStateType_TrackPlaybackIndex: {
+                span_read(IAPIPodStateTrackPlaybackIndexPayload);
+                IAP_LOGF("  index=%u", swap_32(payload->index));
+            } break;
+            case IAPIPodStateType_ChapterIndex: {
+                span_read(IAPIPodStateChapterIndexPayload);
+                IAP_LOGF("  chapter_index=%u", swap_16(payload->chapter_index));
+                IAP_LOGF("  chapter_count=%u", swap_16(payload->chapter_count));
+            } break;
+            case IAPIPodStateType_PlayStatus: {
+                span_read(IAPIPodStatePlayStatusPayload);
+                IAP_LOGF("  play_status=%u", payload->status);
+            } break;
+            case IAPIPodStateType_Volume: {
+                span_read(IAPIPodStateVolumePayload);
+                IAP_LOGF("  mute=%u", payload->mute_state);
+                IAP_LOGF("  volume=%u", payload->ui_volume);
+            } break;
+            case IAPIPodStateType_Power: {
+                span_read(IAPIPodStatePowerPayload);
+                IAP_LOGF("  power_state=%u", payload->power_state);
+                IAP_LOGF("  battery_level=%u", payload->battery_level);
+            } break;
+            case IAPIPodStateType_EQSetting: {
+                span_read(IAPIPodStateEQSettingPayload);
+                IAP_LOGF("  eq_index=%u", swap_32(payload->eq_index));
+            } break;
+            case IAPIPodStateType_ShuffleSetting: {
+                span_read(IAPIPodStateShuffleSettingPayload);
+                IAP_LOGF("  shuffle_state=%u", payload->shuffle_state);
+            } break;
+            case IAPIPodStateType_RepeatSetting: {
+                span_read(IAPIPodStateRepeatSettingPayload);
+                IAP_LOGF("  repeat_state=%u", payload->repeat_state);
+            } break;
+            case IAPIPodStateType_DateTimeSetting: {
+                span_read(IAPIPodStateDateTimeSettingPayload);
+                IAP_LOGF("  time=%04d-%02d-%02d %02d:%02d", swap_16(payload->year), payload->month, payload->day, payload->hour, payload->minute);
+            } break;
+            case IAPIPodStateType_AlarmSetting: {
+                span_read(IAPIPodStateAlarmSettingPayload);
+                IAP_LOGF("  alarm");
+            } break;
+            case IAPIPodStateType_BacklightLevel: {
+                span_read(IAPIPodStateBacklightLevelPayload);
+                IAP_LOGF("  backlight_level=%u", payload->level);
+            } break;
+            case IAPIPodStateType_HoldSwitchState: {
+                span_read(IAPIPodStateHoldSwitchStatePayload);
+                IAP_LOGF("  hold_switch_state=%u", payload->state);
+            } break;
+            case IAPIPodStateType_SoundCheckState: {
+                span_read(IAPIPodStateSoundCheckStatePayload);
+                IAP_LOGF("  sound_check_state=%u", payload->state);
+            } break;
+            case IAPIPodStateType_AudiobookSpeeed: {
+                span_read(IAPIPodStateAudiobookSpeeedPayload);
+                IAP_LOGF("  audio_book_speed=%u", payload->speed);
+            } break;
+            case IAPIPodStateType_TrackTimePositionSec: {
+                span_read(IAPIPodStateTrackTimePositionSecPayload);
+                IAP_LOGF("  position=%us", swap_16(payload->position_s));
+            } break;
+            case IAPIPodStateType_AbsoluteVolume: {
+                span_read(IAPIPodStateAbsoluteVolumePayload);
+                IAP_LOGF("  mute=%u", payload->mute_state);
+                IAP_LOGF("  volume=%u", payload->ui_volume);
+                IAP_LOGF("  absolute_volume=%u", payload->absolute_volume);
+            } break;
+            case IAPIPodStateType_TrackCaps: {
+                span_read(IAPIPodStateTrackCapsPayload);
+                IAP_LOGF("  track_caps=0x%04X", swap_32(payload->caps));
+            } break;
+            case IAPIPodStateType_PlaybackEngineContents: {
+                span_read(IAPIPodStatePlaybackEngineContentsPayload);
+                IAP_LOGF("  playback_engine_contents=%u", swap_32(payload->count));
+            } break;
+            }
         } break;
         case IAPDisplayRemoteCommandID_GetIPodStateInfo: {
             span_read(IAPGetIPodStateInfoPayload);

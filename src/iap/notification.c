@@ -101,7 +101,6 @@ static uint8_t play_status_to_extended(uint8_t status) {
 
 #define send_notify_3(PayloadType, StateType, set)                                                                                                                      \
     if(ctx->enabled_notifications_3 & ctx->notifications_3 & (1 << StateType)) {                                                                                        \
-        print("notification " #StateType);                                                                                                                              \
         struct PayloadType* payload = iap_span_alloc(&request, sizeof(*payload));                                                                                       \
         check_ret(payload != NULL, iap_false);                                                                                                                          \
         payload->type = StateType;                                                                                                                                      \
