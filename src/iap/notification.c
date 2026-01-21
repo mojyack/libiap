@@ -72,6 +72,10 @@ void iap_notify_hold_switch_state(struct IAPContext* ctx, uint8_t state) {
 }
 
 IAPBool iap_periodic_tick(struct IAPContext* ctx) {
+    if(ctx->waiting_for_audio_attrs_ack) {
+        return iap_true;
+    }
+
     ctx->flushing_notifications = iap_true;
     ctx->notification_tick += 1;
     if(!ctx->send_busy) {

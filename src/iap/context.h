@@ -76,8 +76,9 @@ struct IAPContext {
     uint8_t                notification_tick;
     /* _iap_send_hid_reports */
     uint8_t* hid_send_staging_buf;
-    IAPBool  send_busy;
-    IAPBool  flushing_notifications;
+    IAPBool  send_busy : 1;
+    IAPBool  flushing_notifications : 1;
+    IAPBool  waiting_for_audio_attrs_ack : 1;
 
     uint8_t phase; /* IAPPhase */
 };

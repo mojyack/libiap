@@ -42,9 +42,10 @@ IAPBool iap_init_ctx(struct IAPContext* ctx) {
     ctx->notification_tick       = 0;
     ctx->hid_send_staging_buf    = iap_platform_malloc(ctx, max_input_hid_desc_size + 1 /* report id */, IAPPlatformMallocFlags_Uncached);
     check_ret(ctx->hid_send_staging_buf != NULL, iap_false);
-    ctx->send_busy              = iap_false;
-    ctx->flushing_notifications = iap_false;
-    ctx->phase                  = IAPPhase_Connected;
+    ctx->send_busy                   = iap_false;
+    ctx->flushing_notifications      = iap_false;
+    ctx->waiting_for_audio_attrs_ack = iap_false;
+    ctx->phase                       = IAPPhase_Connected;
     return iap_true;
 }
 
@@ -808,6 +809,10 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
         switch(command) {
         case IAPDigitalAudioCommandID_AccessoryAck: {
             read_request(IAPAccAckPayload);
+            if(request->id == IAPDigitalAudioCommandID_TrackNewAudioAttributes) {
+                check_ret(ctx->waiting_for_audio_attrs_ack, -IAPAckStatus_EBadParameter);
+                ctx->waiting_for_audio_attrs_ack = iap_false;
+            }
             response_span->ptr = NULL;
             check_ret(request->status == IAPAckStatus_Success, 0);
             return 0;
@@ -1187,6 +1192,11 @@ static IAPBool push_active_event(struct IAPContext* ctx, struct IAPActiveEvent e
 }
 
 static IAPBool process_select_sampr(struct IAPContext* ctx, struct IAPActiveEvent* event) {
+    if(ctx->waiting_for_audio_attrs_ack) {
+        IAP_ERRORF("another sampr request pending");
+    }
+    ctx->waiting_for_audio_attrs_ack = iap_true;
+
     struct IAPSpan                            request_span = _iap_get_buffer_for_send_payload(ctx);
     struct IAPTrackNewAudioAttributesPayload* request      = iap_span_alloc(&request_span, sizeof(*request));
     request->sample_rate                                   = swap_32(event->sampr);
