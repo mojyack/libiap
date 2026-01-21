@@ -88,6 +88,15 @@ void iap_platform_control(struct IAPContext* iap_ctx, enum IAPPlatformControl co
     case IAPPlatformControl_Prev: {
         ensure_a(ctx.skip_track(-1));
     } break;
+    case IAPPlatformControl_VolumeUp: {
+        /* TODO */
+    } break;
+    case IAPPlatformControl_VolumeDown: {
+        /* TODO */
+    } break;
+    case IAPPlatformControl_ToggleMute: {
+        /* TODO */
+    } break;
     }
 #undef error_act
     ensure_v(iap_control_response(iap_ctx, pending, result));

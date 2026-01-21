@@ -35,6 +35,9 @@ enum IAPPlatformControl {
     IAPPlatformControl_Stop,
     IAPPlatformControl_Next,
     IAPPlatformControl_Prev,
+    IAPPlatformControl_VolumeUp,
+    IAPPlatformControl_VolumeDown,
+    IAPPlatformControl_ToggleMute,
 };
 
 struct IAPPlatformPendingControl {
