@@ -605,6 +605,14 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             response_span->ptr = NULL;
             return 0;
         } break;
+        case IAPDisplayRemoteCommandID_GetPowerBatteryState: {
+            struct IAPPlatformPowerStatus status;
+            check_ret(iap_platform_get_power_status(ctx, &status), -IAPAckStatus_ECommandFailed);
+            alloc_response(IAPRetPowerBatteryStatePayload);
+            response->power_state   = status.state; /* TODO: convert enum */
+            response->battery_level = status.battery_level;
+            return IAPDisplayRemoteCommandID_RetPowerBatteryState;
+        } break;
         case IAPDisplayRemoteCommandID_GetTrackArtworkTimes: {
             read_request(IAPGetTrackArtworkTimesPayload);
             const uint16_t count = swap_16(request->artwork_count);

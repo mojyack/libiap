@@ -813,6 +813,11 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
                 IAP_LOGF("  index=%u", swap_16(payload->index));
             }
         } break;
+        case IAPDisplayRemoteCommandID_RetPowerBatteryState: {
+            span_read(IAPRetPowerBatteryStatePayload);
+            IAP_LOGF("  power_state=%u", payload->power_state);
+            IAP_LOGF("  battery_level=%u", payload->battery_level);
+        } break;
         case IAPDisplayRemoteCommandID_GetTrackArtworkTimes: {
             span_read(IAPGetTrackArtworkTimesPayload);
             IAP_LOGF("  index=%u", swap_32(payload->track_index));
