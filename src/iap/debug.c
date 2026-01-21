@@ -333,6 +333,21 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
             span_read(IAPRetIPodOptionsPayload);
             IAP_LOGF("  state=0x%08lX", swap_64(payload->state));
         } break;
+        case IAPGeneralCommandID_GetIPodPreferences: {
+            span_read(IAPGetIPodPreferencesPayload);
+            IAP_LOGF("  class=0x%02X", payload->class_id);
+        } break;
+        case IAPGeneralCommandID_RetIPodPreferences: {
+            span_read(IAPSetIPodPreferencesPayload);
+            IAP_LOGF("  class=0x%02X", payload->class_id);
+            IAP_LOGF("  setting=0x%02X", payload->setting_id);
+        } break;
+        case IAPGeneralCommandID_SetIPodPreferences: {
+            span_read(IAPSetIPodPreferencesPayload);
+            IAP_LOGF("  class=0x%02X", payload->class_id);
+            IAP_LOGF("  setting=0x%02X", payload->setting_id);
+            IAP_LOGF("  roe=%d", payload->restore_on_exit);
+        } break;
         case IAPGeneralCommandID_SetUIMode: {
             span_read(IAPSetUIModePayload);
             IAP_LOGF("  mode=0x%02X", payload->ui_mode);

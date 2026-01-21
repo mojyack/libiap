@@ -88,7 +88,7 @@ struct IAPRetIPodPreferencesPayload {
     uint8_t setting_id;
 } __attribute__((packed));
 
-struct IAPSetIPodPreferencePayload {
+struct IAPSetIPodPreferencesPayload {
     uint8_t class_id; /* IAPIPodPereferenceClassID */
     uint8_t setting_id;
     uint8_t restore_on_exit;

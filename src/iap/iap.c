@@ -239,6 +239,18 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             response->state = 0;
             return IAPGeneralCommandID_RetIPodOptions;
         } break;
+        case IAPGeneralCommandID_GetIPodPreferences: {
+            read_request(IAPGetIPodPreferencesPayload);
+            alloc_response(IAPRetIPodPreferencesPayload);
+            response->class_id   = request->class_id;
+            response->setting_id = 0; /* TODO: return actual value */
+            return IAPGeneralCommandID_RetIPodPreferences;
+        } break;
+        case IAPGeneralCommandID_SetIPodPreferences: {
+            read_request(IAPSetIPodPreferencesPayload);
+            /* TODO: handle preferences */
+            return ipod_ack(command, IAPAckStatus_Success, response_span, IAPGeneralCommandID_IPodAck);
+        } break;
         case IAPGeneralCommandID_SetUIMode: {
             read_request(IAPSetUIModePayload);
             return ipod_ack(command, IAPAckStatus_Success, response_span, IAPGeneralCommandID_IPodAck);
