@@ -7,7 +7,7 @@ extern "C" {
 #endif
 
 /* iap.c */
-IAPBool        iap_init_ctx(struct IAPContext* ctx);
+IAPBool        iap_init_ctx(struct IAPContext* ctx, struct IAPOpts opts, void* platform);
 IAPBool        iap_deinit_ctx(struct IAPContext* ctx);
 IAPBool        _iap_feed_packet(struct IAPContext* ctx, const uint8_t* data, size_t size);
 struct IAPSpan _iap_get_buffer_for_send_payload(struct IAPContext* ctx);

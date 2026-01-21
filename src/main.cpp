@@ -120,15 +120,12 @@ auto main(const int argc, const char* const* argv) -> int {
     ctx.fd = open("/dev/iap0", O_RDWR);
     ensure(ctx.fd >= 0);
     unwrap(hs, is_ipod_hid_hs());
-    iap_ctx = IAPContext{
-        .platform = &ctx,
-        .opts     = {
-                .usb_highspeed         = hs,
-                .ignore_hid_report_id  = 1,
-                .artwork_single_report = !hs,
-        },
-    };
-    ensure(iap_init_ctx(&iap_ctx));
+    ensure(iap_init_ctx(&iap_ctx, {
+                                      .usb_highspeed         = hs,
+                                      .ignore_hid_report_id  = 1,
+                                      .artwork_single_report = !hs,
+                                  },
+                        &ctx));
 
     ensure(snd_pcm_open(std::inout_ptr(snd), "hw:2,0", SND_PCM_STREAM_PLAYBACK, SND_PCM_NONBLOCK) == 0);
     ensure(snd_pcm_set_params(snd.get(), SND_PCM_FORMAT_S16_LE, SND_PCM_ACCESS_RW_INTERLEAVED, 2, 44100, 0, 50000) == 0);

@@ -48,10 +48,12 @@ static struct IAPContextButtons parse_context_button_bits(uint8_t bits[4], struc
     return released;
 }
 
-IAPBool iap_init_ctx(struct IAPContext* ctx) {
+IAPBool iap_init_ctx(struct IAPContext* ctx, struct IAPOpts opts, void* platform) {
     const uint16_t max_input_hid_desc_size = ctx->opts.usb_highspeed ? 0x02FF : 0x3F;
 
     memset(ctx, 0, sizeof(*ctx));
+    ctx->opts     = opts;
+    ctx->platform = platform;
 
     ctx->hid_recv_buf = iap_platform_malloc(ctx, HID_BUFFER_SIZE, 0);
     check_ret(ctx->hid_recv_buf != NULL, iap_false);
