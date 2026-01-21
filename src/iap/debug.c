@@ -548,6 +548,7 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
             IAP_LOGF("  status=0x%02X", payload->status);
         } break;
         }
+        break;
     case IAPLingoID_DisplayRemote:
         switch(command) {
         case IAPDisplayRemoteCommandID_IPodAck: {
