@@ -16,6 +16,38 @@ enum TransIDSupport {
     TransIDNotSupported,
 };
 
+static struct IAPContextButtons parse_context_button_bits(uint8_t bits[4], struct IAPContextButtons* current) {
+    struct IAPContextButtons new;
+    struct IAPContextButtons released;
+
+#define process(field, Mask, bits)                                    \
+    new.field      = !!(bits & IAPContextButtonStatusButtons_##Mask); \
+    released.field = current->field && !new.field;
+
+    process(play_pause, PlayPause, bits[0]);
+    process(volume_up, VolumeUp, bits[0]);
+    process(volume_down, VolumeDown, bits[0]);
+    process(next_track, NextTrack, bits[0]);
+    process(prev_track, PrevTrack, bits[0]);
+    process(next_album, NextAlbum, bits[0]);
+    process(prev_album, PrevAlbum, bits[0]);
+    process(stop, Stop, bits[0]);
+    process(play, PlayResume, bits[1]);
+    process(pause, Pause, bits[1]);
+    process(mute_toggle, MuteToggle, bits[1]);
+    process(next_chapter, NextChapter, bits[1]);
+    process(prev_chapter, PrevChapter, bits[1]);
+    process(next_playlist, NextPlaylist, bits[1]);
+    process(prev_playlist, PrevPlaylist, bits[1]);
+    process(shuffle_advance, ShuffleSettingAdvance, bits[1]);
+    process(repeat_advance, RepeatSettingAdvance, bits[2]);
+
+#undef process
+
+    *current = new;
+    return released;
+}
+
 IAPBool iap_init_ctx(struct IAPContext* ctx) {
     const uint16_t max_input_hid_desc_size = ctx->opts.usb_highspeed ? 0x02FF : 0x3F;
 
@@ -276,6 +308,63 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
         case IAPGeneralCommandID_SetEventNotification: {
             read_request(IAPSetEventNotificationPayload);
             return ipod_ack(command, IAPAckStatus_Success, response_span, IAPGeneralCommandID_IPodAck);
+        } break;
+        }
+        break;
+    case IAPLingoID_SimpleRemote:
+        switch(command) {
+        case IAPSimpleRemoteCommandID_ContextButtonStatus: {
+            response_span->ptr = NULL;
+
+            uint8_t bits[4] = {0};
+            for(int i = 0; i < 4 && request_span->size > 0; i += 1) {
+                iap_span_read_8(request_span, &bits[i]);
+            }
+            const struct IAPContextButtons         released = parse_context_button_bits(bits, &ctx->context_button_state);
+            const struct IAPPlatformPendingControl pending  = {
+                 .req_command = command,
+                 .ack_command = -1,
+                 .trans_id    = ctx->handling_trans_id,
+                 .lingo       = lingo,
+            };
+            const struct {
+                IAPBool                 released;
+                enum IAPPlatformControl control;
+            } table[] = {
+                {released.play_pause, IAPPlatformControl_TogglePlayPause},
+                {released.volume_up, IAPPlatformControl_VolumeUp},
+                {released.volume_down, IAPPlatformControl_VolumeDown},
+                {released.next_track, IAPPlatformControl_Next},
+                {released.prev_track, IAPPlatformControl_Prev},
+                {released.next_album, IAPPlatformControl_Next},
+                {released.prev_album, IAPPlatformControl_Prev},
+                {released.stop, IAPPlatformControl_Stop},
+                {released.play, IAPPlatformControl_Play},
+                {released.pause, IAPPlatformControl_Pause},
+                {released.mute_toggle, IAPPlatformControl_ToggleMute},
+                {released.next_chapter, IAPPlatformControl_Next},
+                {released.prev_chapter, IAPPlatformControl_Prev},
+                {released.next_playlist, IAPPlatformControl_Next},
+                {released.prev_playlist, IAPPlatformControl_Prev},
+            };
+            for(size_t i = 0; i < array_size(table); i += 1) {
+                if(table[i].released) {
+                    iap_platform_control(ctx, table[i].control, pending);
+                }
+            }
+            if(released.shuffle_advance) {
+                uint8_t current;
+                check_act(iap_platform_get_shuffle_setting(ctx, &current), return 0);
+                current = (current + 1) % IAPIPodStateShuffleSettingState_Albums;
+                check_act(iap_platform_set_shuffle_setting(ctx, current), return 0);
+            }
+            if(released.repeat_advance) {
+                uint8_t current;
+                check_act(iap_platform_get_repeat_setting(ctx, &current), return 0);
+                current = (current + 1) % IAPIPodStateRepeatSettingState_All;
+                check_act(iap_platform_set_repeat_setting(ctx, current), return 0);
+            }
+            return 0;
         } break;
         }
         break;
@@ -1229,6 +1318,10 @@ IAPBool iap_control_response(struct IAPContext* ctx, struct IAPPlatformPendingCo
         .callback         = process_control_response,
         .control_response = {pending, result},
     };
+    if(pending.lingo == IAPLingoID_SimpleRemote && pending.req_command == IAPSimpleRemoteCommandID_ContextButtonStatus) {
+        /* no response */
+        return iap_true;
+    }
     check_ret(push_active_event(ctx, event), iap_false);
 
     return iap_true;
