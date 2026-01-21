@@ -19,33 +19,17 @@ enum TransIDSupport {
 IAPBool iap_init_ctx(struct IAPContext* ctx) {
     const uint16_t max_input_hid_desc_size = ctx->opts.usb_highspeed ? 0x02FF : 0x3F;
 
+    memset(ctx, 0, sizeof(*ctx));
+
     ctx->hid_recv_buf = iap_platform_malloc(ctx, HID_BUFFER_SIZE, 0);
     check_ret(ctx->hid_recv_buf != NULL, iap_false);
-    ctx->hid_recv_buf_cursor = 0;
-    ctx->send_buf            = iap_platform_malloc(ctx, SEND_BUFFER_SIZE, 0);
+    ctx->send_buf = iap_platform_malloc(ctx, SEND_BUFFER_SIZE, 0);
     check_ret(ctx->send_buf != NULL, iap_false);
-    ctx->send_buf_sending_cursor      = 0;
-    ctx->send_buf_sending_range_begin = 0;
-    ctx->send_buf_sending_range_end   = 0;
-    ctx->on_send_complete             = NULL;
-    for(size_t i = 0; i < array_size(ctx->active_events); i += 1) {
-        ctx->active_events[i].callback = NULL;
-    }
-    ctx->handling_trans_id       = -1;
-    ctx->trans_id_support        = TransIDUnknown;
-    ctx->artwork.valid           = iap_false;
-    ctx->trans_id                = 0;
-    ctx->enabled_notifications_3 = 0;
-    ctx->notifications_3         = 0;
-    ctx->enabled_notifications_4 = 0;
-    ctx->notifications_4         = 0;
-    ctx->notification_tick       = 0;
-    ctx->hid_send_staging_buf    = iap_platform_malloc(ctx, max_input_hid_desc_size + 1 /* report id */, IAPPlatformMallocFlags_Uncached);
+    ctx->handling_trans_id    = -1;
+    ctx->trans_id_support     = TransIDUnknown;
+    ctx->hid_send_staging_buf = iap_platform_malloc(ctx, max_input_hid_desc_size + 1 /* report id */, IAPPlatformMallocFlags_Uncached);
     check_ret(ctx->hid_send_staging_buf != NULL, iap_false);
-    ctx->send_busy                   = iap_false;
-    ctx->flushing_notifications      = iap_false;
-    ctx->waiting_for_audio_attrs_ack = iap_false;
-    ctx->phase                       = IAPPhase_Connected;
+    ctx->phase = IAPPhase_Connected;
     return iap_true;
 }
 
