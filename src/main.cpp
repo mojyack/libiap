@@ -124,6 +124,7 @@ auto main(const int argc, const char* const* argv) -> int {
                                       .usb_highspeed         = hs,
                                       .ignore_hid_report_id  = 1,
                                       .artwork_single_report = !hs,
+                                      .enable_packet_dump    = 1,
                                   },
                         &ctx));
 

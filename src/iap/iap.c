@@ -1154,8 +1154,10 @@ IAPBool _iap_feed_packet(struct IAPContext* ctx, const uint8_t* const data, cons
         ctx->handling_trans_id = buf.u16;
     }
 
-    IAP_LOGF("==== acc ====");
-    _iap_dump_packet(lingo, command, ctx->handling_trans_id, request);
+    if(ctx->opts.enable_packet_dump) {
+        IAP_LOGF("==== acc ====");
+        _iap_dump_packet(lingo, command, ctx->handling_trans_id, request);
+    }
 
     struct IAPSpan response = _iap_get_buffer_for_send_payload(ctx);
     int32_t        ret      = handle_command(ctx, lingo, command, &request, &response);
@@ -1229,7 +1231,7 @@ IAPBool _iap_send_packet(struct IAPContext* ctx, uint8_t lingo, uint16_t command
     uint8_t* ptr          = _iap_get_buffer_for_send_payload(ctx).ptr;
     size_t   payload_size = final_ptr - ptr;
 
-    {
+    if(ctx->opts.enable_packet_dump) {
         IAP_LOGF("==== dev ====");
         struct IAPSpan payload_span = {
             .ptr  = _iap_get_buffer_for_send_payload(ctx).ptr,

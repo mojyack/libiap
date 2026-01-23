@@ -18,6 +18,8 @@ struct IAPOpts {
     IAPBool ignore_hid_report_id : 1;
     /* limit packet size while sending artworks for stability */
     IAPBool artwork_single_report : 1;
+    /* dump each packets */
+    IAPBool enable_packet_dump : 1;
 };
 
 struct IAPContextButtons {
