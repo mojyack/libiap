@@ -921,11 +921,11 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
         switch(command) {
         case IAPDigitalAudioCommandID_AccessoryAck: {
             read_request(IAPAccAckPayload);
+            response_span->ptr = NULL;
             if(request->id == IAPDigitalAudioCommandID_TrackNewAudioAttributes) {
-                check_ret(ctx->waiting_for_audio_attrs_ack, -IAPAckStatus_EBadParameter);
+                check_ret(ctx->waiting_for_audio_attrs_ack, 0, "unexpected ack");
                 ctx->waiting_for_audio_attrs_ack = iap_false;
             }
-            response_span->ptr = NULL;
             check_ret(request->status == IAPAckStatus_Success, 0);
             return 0;
         } break;
