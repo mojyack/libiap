@@ -740,7 +740,12 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
         case IAPExtendedInterfaceCommandID_GetNumberCategorizedDBRecords: {
             read_request(IAPGetNumberCategorizedDBRecordsPayload);
             uint32_t count;
-            if(request->type == IAPDatabaseType_Track) {
+            switch(request->type) {
+            case IAPDatabaseType_Playlist: {
+                /* TODO: implement platform callback */
+                count = 99;
+            } break;
+            case IAPDatabaseType_Track: {
                 struct IAPPlatformPlayStatus status;
                 check_ret(iap_platform_get_play_status(ctx, &status), -IAPAckStatus_ECommandFailed);
                 /* track_count is invalid while stopped.
@@ -748,9 +753,11 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
                  * may cause empty library error. */
                 /* TODO: maybe add dedicated platform callback? */
                 count = status.state == IAPIPodStatePlayStatus_PlaybackStopped ? 99 : status.track_count;
-            } else {
+            } break;
+            default: {
                 warn("unsupported type 0x%02X", request->type);
                 count = 0;
+            } break;
             }
 
             alloc_response(IAPReturnNumberCategorizedDBRecordsPayload);
