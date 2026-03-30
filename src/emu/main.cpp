@@ -51,8 +51,13 @@ auto find_rockbox_card_index() -> std::optional<int> {
     }
 }
 
+auto hidraw = true;
+
 auto to_bytes(std::string_view str) -> std::optional<std::vector<std::byte>> {
     auto ret = std::vector<std::byte>();
+    if(hidraw) {
+        ret.push_back(std::byte(0));
+    }
     for(const auto e : split(str, ",")) {
         unwrap(n, from_chars<uint8_t>(e, 16));
         ret.push_back(std::byte(n));
@@ -62,7 +67,6 @@ auto to_bytes(std::string_view str) -> std::optional<std::vector<std::byte>> {
 
 auto iap_fd   = 0;
 auto trans_id = uint16_t(0);
-auto hidraw   = true;
 
 auto send_command(const uint16_t lingo, const uint16_t command, const void* const payload = nullptr, const size_t payload_size = 0) -> bool {
     auto frame   = build_iap_frame(lingo, command, trans_id, payload, payload_size);
