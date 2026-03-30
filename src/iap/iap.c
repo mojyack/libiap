@@ -49,7 +49,7 @@ static struct IAPContextButtons parse_context_button_bits(uint8_t bits[4], struc
 }
 
 IAPBool iap_init_ctx(struct IAPContext* ctx, struct IAPOpts opts, void* platform) {
-    const uint16_t max_input_hid_desc_size = ctx->opts.usb_highspeed ? 0x02FF : 0x3F;
+    const uint16_t max_input_hid_desc_size = opts.usb_highspeed ? 0x02FF : 0x3F;
 
     memset(ctx, 0, sizeof(*ctx));
     ctx->opts     = opts;
