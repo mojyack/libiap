@@ -157,7 +157,6 @@ static IAPBool send_artwork_chunk_cb(struct IAPContext* ctx) {
 
 static int32_t start_artwork_data(struct IAPContext* ctx, struct IAPSpan* request_span, IAPBool ext) {
     read_request(IAPGetTrackArtworkDataPayload);
-    check_ret(request != NULL, -IAPAckStatus_EBadParameter);
     check_ret(request->format_id == 0, -IAPAckStatus_EBadParameter);
     check_ret(request->offset_ms == 0, -IAPAckStatus_EBadParameter);
     check_ret(!ctx->artwork.valid, -IAPAckStatus_EBadParameter);
