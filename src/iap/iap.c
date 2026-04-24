@@ -1111,9 +1111,10 @@ IAPBool _iap_feed_packet(struct IAPContext* ctx, const uint8_t* const data, cons
         check_ret(iap_span_read_8(&span, &buf.u8), iap_false);
     }
     check_ret(buf.u8 == IAP_SOF_BYTE, iap_false, "%x != %x", buf.u8, IAP_SOF_BYTE);
+    const uint8_t* const checksum_range_begin = span.ptr;
     /* read size */
     check_ret(iap_span_read_8(&span, &buf.u8), iap_false);
-    uint16_t length;
+    size_t length;
     if(buf.u8 == 0) {
         /* long packet */
         check_ret(iap_span_read_16(&span, &buf.u16), iap_false);
@@ -1121,6 +1122,16 @@ IAPBool _iap_feed_packet(struct IAPContext* ctx, const uint8_t* const data, cons
     } else {
         length = buf.u8;
     }
+    /* we have length, strip span so that it contains lingo,command,payload */
+    check_ret(span.size >= length + 1 /* checksum */, iap_false);
+    span.size = length;
+    /* verify checksum */
+    const uint8_t* const checksum_range_end = span.ptr + span.size + 1 /* checksum */;
+    uint8_t              checksum           = 0;
+    for(const uint8_t* ptr = checksum_range_begin; ptr < checksum_range_end; ptr += 1) {
+        checksum += *ptr;
+    }
+    check_ret(checksum == 0, iap_false);
     /* read lingo id */
     check_ret(iap_span_read_8(&span, &buf.u8), iap_false);
     uint8_t lingo = buf.u8;
@@ -1133,15 +1144,8 @@ IAPBool _iap_feed_packet(struct IAPContext* ctx, const uint8_t* const data, cons
         check_ret(iap_span_read_8(&span, &buf.u8), iap_false);
         command = buf.u8;
     }
-    /* request payload (and maybe trans id) */
-    struct IAPSpan request = {
-        span.ptr,
-        length - 1 /* lingo id */ - (lingo == IAPLingoID_ExtendedInterface ? 2 : 1 /* command id */),
-    };
 
-    /* read checksum */
-    check_ret(span.size >= request.size + 1 /* checksum */, iap_false);
-    const uint8_t checksum = data[request.size]; /* TODO: verify checksum */
+    /* now span contains only payload */
 
     /* request handling */
     if(ctx->trans_id_support == TransIDUnknown) {
@@ -1157,17 +1161,17 @@ IAPBool _iap_feed_packet(struct IAPContext* ctx, const uint8_t* const data, cons
         }
     }
     if(ctx->trans_id_support == TransIDSupported) {
-        check_ret(iap_span_read_16(&request, &buf.u16), iap_false);
+        check_ret(iap_span_read_16(&span, &buf.u16), iap_false);
         ctx->handling_trans_id = buf.u16;
     }
 
     if(ctx->opts.enable_packet_dump) {
         IAP_LOGF("==== acc ====");
-        _iap_dump_packet(lingo, command, ctx->handling_trans_id, request);
+        _iap_dump_packet(lingo, command, ctx->handling_trans_id, span);
     }
 
     struct IAPSpan response = _iap_get_buffer_for_send_payload(ctx);
-    int32_t        ret      = handle_command(ctx, lingo, command, &request, &response);
+    int32_t        ret      = handle_command(ctx, lingo, command, &span, &response);
     if(response.ptr == NULL) {
         /* handler disabled response */
         return iap_true;
@@ -1186,13 +1190,13 @@ IAPBool _iap_feed_packet(struct IAPContext* ctx, const uint8_t* const data, cons
     response = _iap_get_buffer_for_send_payload(ctx);
     switch(ctx->phase) {
     case IAPPhase_Connected:
-        ret = handle_in_connected(ctx, lingo, command, &request, &response);
+        ret = handle_in_connected(ctx, lingo, command, &span, &response);
         break;
     case IAPPhase_IDPS:
-        ret = handle_in_idps(ctx, lingo, command, &request, &response);
+        ret = handle_in_idps(ctx, lingo, command, &span, &response);
         break;
     case IAPPhase_Auth:
-        ret = handle_in_auth(ctx, lingo, command, &request, &response);
+        ret = handle_in_auth(ctx, lingo, command, &span, &response);
         break;
     }
     if(response.ptr == NULL) {
