@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include <string.h>
 
 #include "constants.h"
@@ -145,7 +146,7 @@ static IAPBool send_artwork_chunk_cb(struct IAPContext* ctx) {
         ctx->artwork_cursor += copy_size;
         ctx->artwork_chunk_index += 1;
         ctx->on_send_complete = send_artwork_chunk_cb;
-        print("track artwork left %lu bytes", artwork.size);
+        print("track artwork left %zu bytes", artwork.size);
     } else {
         /* finished, free artwork */
         check_ret(iap_platform_close_artwork(ctx, &ctx->artwork), iap_false);
@@ -515,7 +516,7 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
                 return IAPDisplayRemoteCommandID_RetIPodStateInfo;
             } break;
             default:
-                warn("invalid request type 0x%02X", request->type);
+                warn("invalid request type 0x%02" PRIX8, request->type);
                 return -IAPAckStatus_EBadParameter;
             }
         } break;
@@ -716,7 +717,7 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
                 return -IAPAckStatus_ECommandFailed;
             } break;
             default:
-                warn("invalid request type 0x%02X", request->type);
+                warn("invalid request type 0x%02" PRIX8, request->type);
                 return -IAPAckStatus_EBadParameter;
             }
         } break;
@@ -754,7 +755,7 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
                 count = status.state == IAPIPodStatePlayStatus_PlaybackStopped ? 99 : status.track_count;
             } break;
             default: {
-                warn("unsupported type 0x%02X", request->type);
+                warn("unsupported type 0x%02" PRIX8, request->type);
                 count = 0;
             } break;
             }
@@ -776,7 +777,7 @@ static int32_t handle_command(struct IAPContext* ctx, uint8_t lingo, uint16_t co
             struct IAPPlatformPlayStatus status;
             check_ret(iap_platform_get_play_status(ctx, &status), -IAPAckStatus_ECommandFailed);
             alloc_response(IAPReturnCurrentPlayingTrackIndexPayload);
-            response->index = swap_32(status.state == IAPIPodStatePlayStatus_PlaybackStopped ? -1 : status.track_index);
+            response->index = swap_32(status.state == IAPIPodStatePlayStatus_PlaybackStopped ? (uint32_t)-1 : status.track_index);
             return IAPExtendedInterfaceCommandID_ReturnCurrentPlayingTrackIndex;
         } break;
         case IAPExtendedInterfaceCommandID_GetIndexedPlayingTrackTitle: {
@@ -957,7 +958,7 @@ static int32_t handle_in_connected(struct IAPContext* ctx, uint8_t lingo, uint16
             case IAPIdentifyDeviceLingoesOptions_NoAuth:
                 break;
             case IAPIdentifyDeviceLingoesOptions_DeferAuth:
-                warn("unsupported option 0x%04X", swap_32(request->options));
+                warn("unsupported option 0x%04" PRIX32, swap_32(request->options));
                 return -IAPAckStatus_EBadParameter;
             case IAPIdentifyDeviceLingoesOptions_ImmediateAuth:
                 ctx->on_send_complete = transition_idps_to_auth_cb;
@@ -1020,7 +1021,7 @@ static int32_t handle_in_auth(struct IAPContext* ctx, uint8_t lingo, uint16_t co
         switch(command) {
         case IAPGeneralCommandID_RetAccessoryAuthenticationInfo: {
             read_request(IAPRetAccAuthInfoPayload2p0);
-            print("accessory cert %u/%u", request->cert_current_section_index, request->cert_max_section_index);
+            print("accessory cert %" PRIu8 "/%" PRIu8, request->cert_current_section_index, request->cert_max_section_index);
             /* iap_platform_dump_hex(request->ptr, request->size); */
             if(request->cert_current_section_index < request->cert_max_section_index) {
                 return ipod_ack(command, IAPAckStatus_Success, response_span, IAPGeneralCommandID_IPodAck);

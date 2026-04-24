@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include <stdint.h>
 
 #include "endian.h"
@@ -294,13 +295,13 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
     const char* lingo_str   = _iap_lingo_str_or_null(lingo);
     const char* command_str = _iap_command_str_or_null(lingo, command);
     if(lingo_str == NULL) {
-        IAP_LOGF("?(0x%02X) trans=%d", lingo, trans_id);
+        IAP_LOGF("?(0x%02" PRIX8 ") trans=%" PRIi32, lingo, trans_id);
         return;
     } else if(command_str == NULL) {
-        IAP_LOGF("%s:?(0x%02X) trans=%d", lingo_str, command, trans_id);
+        IAP_LOGF("%s:?(0x%02" PRIX8 ") trans=%" PRIi32, lingo_str, command, trans_id);
         return;
     } else {
-        IAP_LOGF("%s:%s trans=%d", lingo_str, command_str, trans_id);
+        IAP_LOGF("%s:%s trans=%" PRIi32, lingo_str, command_str, trans_id);
     }
 
 #define span_read(Type)                                                  \
@@ -313,15 +314,15 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
         case IAPGeneralCommandID_IPodAck: {
             span_read(IAPIPodAckPayload);
             IAP_LOGF("  id=%s", _iap_command_str(lingo, payload->id));
-            IAP_LOGF("  status=0x%02X", payload->status);
+            IAP_LOGF("  status=0x%02" PRIX8, payload->status);
         } break;
         case IAPGeneralCommandID_ReturnExtendedInterfaceMode: {
             span_read(IAPReturnExtendedInterfaceModePayload);
-            IAP_LOGF("  mode=%u", payload->is_ext_mode);
+            IAP_LOGF("  mode=%" PRIu8, payload->is_ext_mode);
         } break;
         case IAPGeneralCommandID_ReturnIPodSoftwareVersion: {
             span_read(IAPReturnIPodSoftwareVersionPayload);
-            IAP_LOGF("  version=%u.%u.%u", payload->major, payload->minor, payload->revision);
+            IAP_LOGF("  version=%" PRIu8 ".%" PRIu8 ".%" PRIu8, payload->major, payload->minor, payload->revision);
         } break;
         case IAPGeneralCommandID_ReturnIPodSerialNum: {
             IAP_LOGF("  serial=%s", _iap_span_as_str(&span));
@@ -336,11 +337,11 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
         case IAPGeneralCommandID_ReturnLingoProtocolVersion: {
             span_read(IAPReturnLingoProtocolVersionPayload);
             IAP_LOGF("  lingo=%s", _iap_lingo_str(payload->lingo));
-            IAP_LOGF("  version=%u.%u", payload->major, payload->minor);
+            IAP_LOGF("  version=%" PRIu8 ".%" PRIu8, payload->major, payload->minor);
         } break;
         case IAPGeneralCommandID_ReturnTransportMaxPayloadSize: {
             span_read(IAPReturnTransportMaxPayloadSizePayload);
-            IAP_LOGF("  size=%d", swap_16(payload->max_payload_size));
+            IAP_LOGF("  size=%" PRIu16, swap_16(payload->max_payload_size));
         } break;
         case IAPGeneralCommandID_IdentifyDeviceLingoes: {
             span_read(IAPIdentifyDeviceLingoesPayload);
@@ -350,16 +351,16 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
                     IAP_LOGF("  supports %s", _iap_lingo_str(i));
                 }
             }
-            IAP_LOGF("  option=0x%02X", swap_32(payload->options));
-            IAP_LOGF("  device_id=0x%04X", swap_32(payload->device_id));
+            IAP_LOGF("  option=0x%02" PRIX32, swap_32(payload->options));
+            IAP_LOGF("  device_id=0x%04" PRIX32, swap_32(payload->device_id));
         } break;
         case IAPGeneralCommandID_RetIPodOptions: {
             span_read(IAPRetIPodOptionsPayload);
-            IAP_LOGF("  state=0x%08lX", swap_64(payload->state));
+            IAP_LOGF("  state=0x%08" PRIX64, swap_64(payload->state));
         } break;
         case IAPGeneralCommandID_GetIPodPreferences: {
             span_read(IAPGetIPodPreferencesPayload);
-            IAP_LOGF("  class=0x%02X", payload->class_id);
+            IAP_LOGF("  class=0x%02" PRIX8, payload->class_id);
         } break;
         case IAPGeneralCommandID_RetIPodPreferences: {
             span_read(IAPSetIPodPreferencesPayload);
@@ -368,13 +369,13 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
         } break;
         case IAPGeneralCommandID_SetIPodPreferences: {
             span_read(IAPSetIPodPreferencesPayload);
-            IAP_LOGF("  class=0x%02X", payload->class_id);
-            IAP_LOGF("  setting=0x%02X", payload->setting_id);
-            IAP_LOGF("  roe=%d", payload->restore_on_exit);
+            IAP_LOGF("  class=0x%02" PRIX8, payload->class_id);
+            IAP_LOGF("  setting=0x%02" PRIX8, payload->setting_id);
+            IAP_LOGF("  roe=%" PRIu8, payload->restore_on_exit);
         } break;
         case IAPGeneralCommandID_SetUIMode: {
             span_read(IAPSetUIModePayload);
-            IAP_LOGF("  mode=0x%02X", payload->ui_mode);
+            IAP_LOGF("  mode=0x%02" PRIX8, payload->ui_mode);
         } break;
         case IAPGeneralCommandID_SetFIDTokenValues: {
             span_read(IAPSetFIDTokenValuesPayload);
@@ -393,23 +394,23 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
                     /* IAPFIDTokenValuesIdentifyToken contains vla, need to parse manually */
                     const struct IAPFIDTokenValuesIdentifyTokenHead* token_head = iap_span_read(&token_span, sizeof(*token_head));
                     check_act(token_head != NULL, return);
-                    print("accessory supported lingoes(%u):", token_head->num_lingoes);
+                    print("accessory supported lingoes(%" PRIu8 "):", token_head->num_lingoes);
                     for(int i = 0; i < token_head->num_lingoes; i += 1) {
                         uint8_t lingo_id;
                         check_act(iap_span_read_8(&token_span, &lingo_id), return);
-                        IAP_LOGF("  %s(%u)", _iap_lingo_str(lingo_id), lingo_id);
+                        IAP_LOGF("  %s(0x%" PRIX8 ")", _iap_lingo_str(lingo_id), lingo_id);
                     }
                     const struct IAPFIDTokenValuesIdentifyTokenTail* token_tail = iap_span_read(&token_span, sizeof(*token_tail));
                     check_act(token_tail != NULL, return);
                     const uint32_t opt = swap_32(token_tail->device_option);
                     const uint32_t id  = swap_32(token_tail->device_id);
-                    print("options=%04X device_id=%04X", opt, id);
+                    print("options=%04" PRIX32 " device_id=%04" PRIX32, opt, id);
                 } break;
                 case IAPFIDTokenTypes_AccCaps: {
                     const struct IAPFIDTokenValuesAccCapsToken* token = iap_span_read(&token_span, sizeof(*token));
                     check_act(token != NULL, return);
                     const uint64_t caps = swap_64(token->caps_bits);
-                    print("accessory caps: %lX", caps);
+                    print("accessory caps: %" PRIX64, caps);
                 } break;
                 case IAPFIDTokenTypes_AccInfo: {
                     const struct IAPFIDTokenValuesAccInfoToken* token = iap_span_read(&token_span, sizeof(*token));
@@ -420,11 +421,11 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
                         break;
                     case IAPFIDTokenValuesAccInfoTypes_FirmwareVersion:
                         check_act(token_span.size == 3, return);
-                        print("accessory firmware version: %X.%X.%X", token_span.ptr[0], token_span.ptr[1], token_span.ptr[2]);
+                        print("accessory firmware version: %" PRIX8 ".%" PRIX8 ".%" PRIX8, token_span.ptr[0], token_span.ptr[1], token_span.ptr[2]);
                         break;
                     case IAPFIDTokenValuesAccInfoTypes_HardwareVersion:
                         check_act(token_span.size == 3, return);
-                        print("accessory hardware version: %X.%X.%X", token_span.ptr[0], token_span.ptr[1], token_span.ptr[2]);
+                        print("accessory hardware version: %" PRIX8 ".%" PRIX8 ".%" PRIX8, token_span.ptr[0], token_span.ptr[1], token_span.ptr[2]);
                         break;
                     case IAPFIDTokenValuesAccInfoTypes_Manufacture:
                         print("accessory manufacture: %s", _iap_span_as_str(&token_span));
@@ -438,29 +439,29 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
                     case IAPFIDTokenValuesAccInfoTypes_MaxPayloadSize: {
                         uint16_t val;
                         check_act(iap_span_read_16(&token_span, &val), return);
-                        print("accessory max payload size: %u", val);
+                        print("accessory max payload size: %" PRIu16, val);
                     } break;
                     case IAPFIDTokenValuesAccInfoTypes_AccStatus: {
                         uint32_t val;
                         check_act(iap_span_read_32(&token_span, &val), return);
-                        print("accessory status: %X", val);
+                        print("accessory status: %" PRIX32, val);
                     } break;
                     case IAPFIDTokenValuesAccInfoTypes_RFCerts: {
                         uint32_t val;
                         check_act(iap_span_read_32(&token_span, &val), return);
-                        print("accessory rf cert: %X", val);
+                        print("accessory rf cert: %" PRIX32, val);
                     } break;
                     }
                 } break;
                 case IAPFIDTokenTypes_IPodPreference: {
                     const struct IAPFIDTokenValuesIPodPreferenceToken* token = iap_span_read(&token_span, sizeof(*token));
                     check_act(token != NULL, return);
-                    print("accessory setting %X=%X", token->class_id, token->setting_id);
+                    print("accessory setting %" PRIX8 "=%" PRIX8, token->class_id, token->setting_id);
                 } break;
                 case IAPFIDTokenTypes_EAProtocol: {
                     const struct IAPFIDTokenValuesEAProtocolToken* token = iap_span_read(&token_span, sizeof(*token));
                     check_act(token != NULL, return);
-                    print("ea protocol %X=%s", token->protocol_index, _iap_span_as_str(&token_span));
+                    print("ea protocol %" PRIX8 "=%s", token->protocol_index, _iap_span_as_str(&token_span));
                 } break;
                 case IAPFIDTokenTypes_BundleSeedIDPref: {
                     const struct IAPFIDTokenValuesBundleSeedIDPrefToken* token = iap_span_read(&token_span, sizeof(*token));
@@ -471,16 +472,16 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
                     const struct IAPFIDTokenValuesScreenInfoToken* token = iap_span_read(&token_span, sizeof(*token));
                     check_act(token != NULL, return);
                     print("screen info:");
-                    IAP_LOGF("  screen size(inch): %ux%u", swap_16(token->total_screen_width_inches), swap_16(token->total_screen_height_inches));
-                    IAP_LOGF("  screen size(pixel): %ux%u", swap_16(token->total_screen_width_pixels), swap_16(token->total_screen_height_pixels));
-                    IAP_LOGF("  ipod out size(pixel): %ux%u", swap_16(token->ipod_out_screen_width_pixels), swap_16(token->ipod_out_screen_height_pixels));
-                    IAP_LOGF("  feature: %X\n", token->screen_feature_mask);
-                    IAP_LOGF("  gamma: %u\n", token->screen_gamma_value);
+                    IAP_LOGF("  screen size(inch): %" PRIu16 "x%" PRIu16, swap_16(token->total_screen_width_inches), swap_16(token->total_screen_height_inches));
+                    IAP_LOGF("  screen size(pixel): %" PRIu16 "x%" PRIu16, swap_16(token->total_screen_width_pixels), swap_16(token->total_screen_height_pixels));
+                    IAP_LOGF("  ipod out size(pixel): %" PRIu16 "x%" PRIu16, swap_16(token->ipod_out_screen_width_pixels), swap_16(token->ipod_out_screen_height_pixels));
+                    IAP_LOGF("  feature: %" PRIX8, token->screen_feature_mask);
+                    IAP_LOGF("  gamma: %" PRIu8, token->screen_gamma_value);
                 } break;
                 case IAPFIDTokenTypes_EAProtocolMetadata: {
                     const struct IAPFIDTokenValuesEAProtocolMetadataToken* token = iap_span_read(&token_span, sizeof(*token));
                     check_act(token != NULL, return);
-                    print("ea protocol metadata %X=%X", token->protocol_index, token->metadata_type);
+                    print("ea protocol metadata %" PRIX8 "=%" PRIX8, token->protocol_index, token->metadata_type);
                 } break;
                 case IAPFIDTokenTypes_AccDigitalAudioSampleRates: {
                     const struct IAPFIDTokenValuesAccDigitalAudioSampleRatesToken* token = iap_span_read(&token_span, sizeof(*token));
@@ -489,27 +490,27 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
                     while(token_span.size > 0) {
                         uint32_t rate;
                         check_act(iap_span_read_32(&token_span, &rate), return);
-                        IAP_LOGF("  %lu", rate);
+                        IAP_LOGF("  %" PRIu32, rate);
                     }
                 } break;
                 case IAPFIDTokenTypes_AccDigitalAudioVideoDelay: {
                     const struct IAPFIDTokenValuesAccDigitalAudioVideoDelayToken* token = iap_span_read(&token_span, sizeof(*token));
                     check_act(token != NULL, return);
-                    print("accessory video delay: %u", token->delay);
+                    print("accessory video delay: %" PRIu32, token->delay);
                 } break;
                 case IAPFIDTokenTypes_MicrophoneCaps: {
                     const struct IAPFIDTokenValuesMicrophoneCapsToken* token = iap_span_read(&token_span, sizeof(*token));
                     check_act(token != NULL, return);
-                    print("accessory microphone caps: %X", token->caps_bits);
+                    print("accessory microphone caps: %" PRIX32, token->caps_bits);
                 } break;
                 default:
-                    print("unknown fid %04X", token_header->type << 8 | token_header->subtype);
+                    print("unknown fid %04" PRIX16, token_header->type << 8 | token_header->subtype);
                 }
             }
         } break;
         case IAPGeneralCommandID_EndIDPS: {
             span_read(IAPEndIDPSPayload);
-            IAP_LOGF("  status=0x%02X", payload->status);
+            IAP_LOGF("  status=0x%02" PRIX8, payload->status);
         } break;
         case IAPGeneralCommandID_GetIPodOptionsForLingo: {
             span_read(IAPGetIPodOptionsForLingoPayload);
@@ -517,15 +518,15 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
         } break;
         case IAPGeneralCommandID_RetSupportedEventNotification: {
             span_read(IAPRetSupportedEventNotificationPayload);
-            IAP_LOGF("  mask=0x%08lX", swap_64(payload->mask));
+            IAP_LOGF("  mask=0x%08" PRIX64, swap_64(payload->mask));
         } break;
         case IAPGeneralCommandID_SetAvailableCurrent: {
             span_read(IAPSetAvailableCurrentPayload);
-            IAP_LOGF("  current=%umA", swap_16(payload->current_limit_ma));
+            IAP_LOGF("  current=%" PRIu16 "mA", swap_16(payload->current_limit_ma));
         } break;
         case IAPGeneralCommandID_SetEventNotification: {
             span_read(IAPSetEventNotificationPayload);
-            IAP_LOGF("  mask=0x%08lX", swap_64(payload->mask));
+            IAP_LOGF("  mask=0x%08" PRIX64, swap_64(payload->mask));
         } break;
         }
         break;
@@ -534,18 +535,18 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
         case IAPSimpleRemoteCommandID_ContextButtonStatus: {
             uint8_t bits;
             check_ret(iap_span_read_8(&span, &bits), );
-            IAP_LOGF("  bits0=0x%02X", bits);
+            IAP_LOGF("  bits0=0x%02" PRIX8, bits);
             uint8_t index = 1;
             while(span.size > 0) {
                 iap_span_read_8(&span, &bits);
-                IAP_LOGF("  bits%d=0x%02X", index, bits);
+                IAP_LOGF("  bits%d=0x%02" PRIX8, index, bits);
                 index += 1;
             }
         } break;
         case IAPSimpleRemoteCommandID_IPodAck: {
             span_read(IAPIPodAckPayload);
             IAP_LOGF("  id=%s", _iap_command_str(lingo, payload->id));
-            IAP_LOGF("  status=0x%02X", payload->status);
+            IAP_LOGF("  status=0x%02" PRIX8, payload->status);
         } break;
         }
         break;
@@ -554,63 +555,63 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
         case IAPDisplayRemoteCommandID_IPodAck: {
             span_read(IAPIPodAckPayload);
             IAP_LOGF("  id=%s", _iap_command_str(lingo, payload->id));
-            IAP_LOGF("  status=0x%02X", payload->status);
+            IAP_LOGF("  status=0x%02" PRIX8, payload->status);
         } break;
         case IAPDisplayRemoteCommandID_SetCurrentEQProfileIndex: {
             span_read(IAPSetCurrentEQProfileIndexPayload);
-            IAP_LOGF("  index=%u", swap_32(payload->index));
-            IAP_LOGF("  roe=%d", payload->restore_on_exit);
+            IAP_LOGF("  index=%" PRIu32, swap_32(payload->index));
+            IAP_LOGF("  roe=%" PRIu8, payload->restore_on_exit);
         } break;
         case IAPDisplayRemoteCommandID_SetRemoteEventNotification: {
             span_read(IAPSetRemoteEventNotificationPayload);
-            IAP_LOGF("  mask=0x%04X", swap_32(payload->mask));
+            IAP_LOGF("  mask=0x%04" PRIX32, swap_32(payload->mask));
         } break;
         case IAPDisplayRemoteCommandID_RemoteEventNotification: {
             check_ret(span.size >= 1, );
-            IAP_LOGF("  type=0x%02X", span.ptr[0]);
+            IAP_LOGF("  type=0x%02" PRIX8, span.ptr[0]);
             switch(span.ptr[0]) {
             case IAPIPodStateType_TrackTimePositionMSec: {
                 span_read(IAPIPodStateTrackTimePositionMSecPayload);
-                IAP_LOGF("  position=%ums", swap_32(payload->position_ms));
+                IAP_LOGF("  position=%" PRIu32 "ms", swap_32(payload->position_ms));
             } break;
             case IAPIPodStateType_TrackPlaybackIndex: {
                 span_read(IAPIPodStateTrackPlaybackIndexPayload);
-                IAP_LOGF("  index=%u", swap_32(payload->index));
+                IAP_LOGF("  index=%" PRIu32, swap_32(payload->index));
             } break;
             case IAPIPodStateType_ChapterIndex: {
                 span_read(IAPIPodStateChapterIndexPayload);
-                IAP_LOGF("  chapter_index=%u", swap_16(payload->chapter_index));
-                IAP_LOGF("  chapter_count=%u", swap_16(payload->chapter_count));
+                IAP_LOGF("  chapter_index=%" PRIu16, swap_16(payload->chapter_index));
+                IAP_LOGF("  chapter_count=%" PRIu16, swap_16(payload->chapter_count));
             } break;
             case IAPIPodStateType_PlayStatus: {
                 span_read(IAPIPodStatePlayStatusPayload);
-                IAP_LOGF("  play_status=%u", payload->status);
+                IAP_LOGF("  play_status=%" PRIu8, payload->status);
             } break;
             case IAPIPodStateType_Volume: {
                 span_read(IAPIPodStateVolumePayload);
-                IAP_LOGF("  mute=%u", payload->mute_state);
-                IAP_LOGF("  volume=%u", payload->ui_volume);
+                IAP_LOGF("  mute=%" PRIu8, payload->mute_state);
+                IAP_LOGF("  volume=%" PRIu8, payload->ui_volume);
             } break;
             case IAPIPodStateType_Power: {
                 span_read(IAPIPodStatePowerPayload);
-                IAP_LOGF("  power_state=%u", payload->power_state);
-                IAP_LOGF("  battery_level=%u", payload->battery_level);
+                IAP_LOGF("  power_state=%" PRIu8, payload->power_state);
+                IAP_LOGF("  battery_level=%" PRIu8, payload->battery_level);
             } break;
             case IAPIPodStateType_EQSetting: {
                 span_read(IAPIPodStateEQSettingPayload);
-                IAP_LOGF("  eq_index=%u", swap_32(payload->eq_index));
+                IAP_LOGF("  eq_index=%" PRIu32, swap_32(payload->eq_index));
             } break;
             case IAPIPodStateType_ShuffleSetting: {
                 span_read(IAPIPodStateShuffleSettingPayload);
-                IAP_LOGF("  shuffle_state=%u", payload->shuffle_state);
+                IAP_LOGF("  shuffle_state=%" PRIu8, payload->shuffle_state);
             } break;
             case IAPIPodStateType_RepeatSetting: {
                 span_read(IAPIPodStateRepeatSettingPayload);
-                IAP_LOGF("  repeat_state=%u", payload->repeat_state);
+                IAP_LOGF("  repeat_state=%" PRIu8, payload->repeat_state);
             } break;
             case IAPIPodStateType_DateTimeSetting: {
                 span_read(IAPIPodStateDateTimeSettingPayload);
-                IAP_LOGF("  time=%04d-%02d-%02d %02d:%02d", swap_16(payload->year), payload->month, payload->day, payload->hour, payload->minute);
+                IAP_LOGF("  time=%04" PRIu16 "-%02" PRIu8 "-%02" PRIu8 " %02" PRIu8 ":%02" PRIu8, swap_16(payload->year), payload->month, payload->day, payload->hour, payload->minute);
             } break;
             case IAPIPodStateType_AlarmSetting: {
                 span_read(IAPIPodStateAlarmSettingPayload);
@@ -618,19 +619,19 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
             } break;
             case IAPIPodStateType_BacklightLevel: {
                 span_read(IAPIPodStateBacklightLevelPayload);
-                IAP_LOGF("  backlight_level=%u", payload->level);
+                IAP_LOGF("  backlight_level=%" PRIu8, payload->level);
             } break;
             case IAPIPodStateType_HoldSwitchState: {
                 span_read(IAPIPodStateHoldSwitchStatePayload);
-                IAP_LOGF("  hold_switch_state=%u", payload->state);
+                IAP_LOGF("  hold_switch_state=%" PRIu8, payload->state);
             } break;
             case IAPIPodStateType_SoundCheckState: {
                 span_read(IAPIPodStateSoundCheckStatePayload);
-                IAP_LOGF("  sound_check_state=%u", payload->state);
+                IAP_LOGF("  sound_check_state=%" PRIu8, payload->state);
             } break;
             case IAPIPodStateType_AudiobookSpeeed: {
                 span_read(IAPIPodStateAudiobookSpeeedPayload);
-                IAP_LOGF("  audio_book_speed=%u", payload->speed);
+                IAP_LOGF("  audio_book_speed=%" PRIu8, payload->speed);
             } break;
             case IAPIPodStateType_TrackTimePositionSec: {
                 span_read(IAPIPodStateTrackTimePositionSecPayload);
@@ -638,136 +639,136 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
             } break;
             case IAPIPodStateType_AbsoluteVolume: {
                 span_read(IAPIPodStateAbsoluteVolumePayload);
-                IAP_LOGF("  mute=%u", payload->mute_state);
-                IAP_LOGF("  volume=%u", payload->ui_volume);
-                IAP_LOGF("  absolute_volume=%u", payload->absolute_volume);
+                IAP_LOGF("  mute=%" PRIu8, payload->mute_state);
+                IAP_LOGF("  volume=%" PRIu8, payload->ui_volume);
+                IAP_LOGF("  absolute_volume=%" PRIu8, payload->absolute_volume);
             } break;
             case IAPIPodStateType_TrackCaps: {
                 span_read(IAPIPodStateTrackCapsPayload);
-                IAP_LOGF("  track_caps=0x%04X", swap_32(payload->caps));
+                IAP_LOGF("  track_caps=0x%04" PRIX32, swap_32(payload->caps));
             } break;
             case IAPIPodStateType_PlaybackEngineContents: {
                 span_read(IAPIPodStatePlaybackEngineContentsPayload);
-                IAP_LOGF("  playback_engine_contents=%u", swap_32(payload->count));
+                IAP_LOGF("  playback_engine_contents=%" PRIu32, swap_32(payload->count));
             } break;
             }
         } break;
         case IAPDisplayRemoteCommandID_GetIPodStateInfo: {
             span_read(IAPGetIPodStateInfoPayload);
-            IAP_LOGF("  type=0x%02X", payload->type);
+            IAP_LOGF("  type=0x%02" PRIX8, payload->type);
         } break;
         case IAPDisplayRemoteCommandID_RetIPodStateInfo: {
             check_ret(span.size > 1, );
-            IAP_LOGF("  type=0x%02X", span.ptr[0]);
+            IAP_LOGF("  type=0x%02" PRIX8, span.ptr[0]);
             switch(span.ptr[0]) {
             case IAPIPodStateType_TrackTimePositionMSec: {
                 span_read(IAPIPodStateTrackTimePositionMSecPayload);
-                IAP_LOGF("  position=%dms", swap_32(payload->position_ms));
+                IAP_LOGF("  position=%" PRIu32 "ms", swap_32(payload->position_ms));
             } break;
             case IAPIPodStateType_TrackPlaybackIndex: {
                 span_read(IAPIPodStateTrackPlaybackIndexPayload);
-                IAP_LOGF("  index=%u", swap_32(payload->index));
+                IAP_LOGF("  index=%" PRIu32, swap_32(payload->index));
             } break;
             case IAPIPodStateType_ChapterIndex: {
                 span_read(IAPIPodStateChapterIndexPayload);
-                IAP_LOGF("  index=%u", swap_32(payload->index));
-                IAP_LOGF("  cindex=%u", swap_16(payload->chapter_index));
-                IAP_LOGF("  ccount=%u", swap_16(payload->chapter_count));
+                IAP_LOGF("  index=%" PRIu32, swap_32(payload->index));
+                IAP_LOGF("  cindex=%" PRIu16, swap_16(payload->chapter_index));
+                IAP_LOGF("  ccount=%" PRIu16, swap_16(payload->chapter_count));
             } break;
             case IAPIPodStateType_PlayStatus: {
                 span_read(IAPIPodStatePlayStatusPayload);
-                IAP_LOGF("  status=%u", payload->status);
+                IAP_LOGF("  status=%" PRIu8, payload->status);
             } break;
             case IAPIPodStateType_Volume: {
                 span_read(IAPIPodStateVolumePayload);
-                IAP_LOGF("  ui_volume=%u", payload->ui_volume);
-                IAP_LOGF("  mute_state=%u", payload->mute_state);
+                IAP_LOGF("  ui_volume=%" PRIu8, payload->ui_volume);
+                IAP_LOGF("  mute_state=%" PRIu8, payload->mute_state);
             } break;
             case IAPIPodStateType_Power: {
                 span_read(IAPIPodStatePowerPayload);
-                IAP_LOGF("  power_state=0x%02X", payload->power_state);
-                IAP_LOGF("  battery_level=%u", payload->battery_level);
+                IAP_LOGF("  power_state=0x%02" PRIX8, payload->power_state);
+                IAP_LOGF("  battery_level=%" PRIu8, payload->battery_level);
             } break;
             case IAPIPodStateType_EQSetting: {
                 span_read(IAPIPodStateEQSettingPayload);
-                IAP_LOGF("  eq_index=%u", swap_32(payload->eq_index));
+                IAP_LOGF("  eq_index=%" PRIu32, swap_32(payload->eq_index));
             } break;
             case IAPIPodStateType_ShuffleSetting: {
                 span_read(IAPIPodStateShuffleSettingPayload);
-                IAP_LOGF("  shuffle_state=%u", payload->shuffle_state);
+                IAP_LOGF("  shuffle_state=%" PRIu8, payload->shuffle_state);
             } break;
             case IAPIPodStateType_RepeatSetting: {
                 span_read(IAPIPodStateRepeatSettingPayload);
-                IAP_LOGF("  repeat_state=%u", payload->repeat_state);
+                IAP_LOGF("  repeat_state=%" PRIu8, payload->repeat_state);
             } break;
             case IAPIPodStateType_DateTimeSetting: {
                 span_read(IAPIPodStateDateTimeSettingPayload);
-                IAP_LOGF("  time=%04d-%02d-%02d %02d:%02d", swap_16(payload->year), payload->month, payload->day, payload->hour, payload->minute);
+                IAP_LOGF("  time=%04" PRIu16 "-%02" PRIu8 "-%02" PRIu8 " %02" PRIu8 ":%02" PRIu8, swap_16(payload->year), payload->month, payload->day, payload->hour, payload->minute);
             } break;
             case IAPIPodStateType_AlarmSetting: {
             } break;
             case IAPIPodStateType_BacklightLevel: {
                 span_read(IAPIPodStateBacklightLevelPayload);
-                IAP_LOGF("  level=%u", payload->level);
+                IAP_LOGF("  level=%" PRIu8, payload->level);
             } break;
             case IAPIPodStateType_HoldSwitchState: {
                 span_read(IAPIPodStateHoldSwitchStatePayload);
-                IAP_LOGF("  state=%u", payload->state);
+                IAP_LOGF("  state=%" PRIu8, payload->state);
             } break;
             case IAPIPodStateType_SoundCheckState: {
                 span_read(IAPIPodStateSoundCheckStatePayload);
-                IAP_LOGF("  state=%u", payload->state);
+                IAP_LOGF("  state=%" PRIu8, payload->state);
             } break;
             case IAPIPodStateType_AudiobookSpeeed: {
                 span_read(IAPIPodStateAudiobookSpeeedPayload);
-                IAP_LOGF("  speed=%u", payload->speed);
+                IAP_LOGF("  speed=%" PRIu8, payload->speed);
             } break;
             case IAPIPodStateType_TrackTimePositionSec: {
                 span_read(IAPIPodStateTrackTimePositionSecPayload);
-                IAP_LOGF("  position=%ds", swap_16(payload->position_s));
+                IAP_LOGF("  position=%" PRIu16 "s", swap_16(payload->position_s));
             } break;
             case IAPIPodStateType_AbsoluteVolume: {
                 span_read(IAPIPodStateAbsoluteVolumePayload);
-                IAP_LOGF("  mute=%u", payload->mute_state);
-                IAP_LOGF("  ui_volume=%u", payload->ui_volume);
-                IAP_LOGF("  absolute_volume=%u", payload->absolute_volume);
+                IAP_LOGF("  mute=%" PRIu8, payload->mute_state);
+                IAP_LOGF("  ui_volume=%" PRIu8, payload->ui_volume);
+                IAP_LOGF("  absolute_volume=%" PRIu8, payload->absolute_volume);
             } break;
             case IAPIPodStateType_TrackCaps: {
                 span_read(IAPIPodStateTrackCapsPayload);
-                IAP_LOGF("  caps=0x%04X", swap_32(payload->caps));
+                IAP_LOGF("  caps=0x%04" PRIX32, swap_32(payload->caps));
             } break;
             case IAPIPodStateType_PlaybackEngineContents: {
                 span_read(IAPIPodStatePlaybackEngineContentsPayload);
-                IAP_LOGF("  count=%u", swap_32(payload->count));
+                IAP_LOGF("  count=%" PRIu32, swap_32(payload->count));
             } break;
             }
         } break;
         case IAPDisplayRemoteCommandID_RetPlayStatus: {
             span_read(IAPRetPlayStatusPayload);
-            IAP_LOGF("  state=0x%02X", payload->state);
-            IAP_LOGF("  index=%u", swap_32(payload->track_index));
-            IAP_LOGF("  pos=%ums", swap_32(payload->track_pos_ms));
-            IAP_LOGF("  total=%ums", swap_32(payload->track_total_ms));
+            IAP_LOGF("  state=0x%02" PRIX8, payload->state);
+            IAP_LOGF("  index=%" PRIu32, swap_32(payload->track_index));
+            IAP_LOGF("  pos=%" PRIu32 "ms", swap_32(payload->track_pos_ms));
+            IAP_LOGF("  total=%" PRIu32 "ms", swap_32(payload->track_total_ms));
         } break;
         case IAPDisplayRemoteCommandID_GetIndexedPlayingTrackInfo: {
             span_read(IAPGetIndexedPlayingTrackInfoPayload);
-            IAP_LOGF("  type=0x%02X", payload->type);
-            IAP_LOGF("  track=%u", swap_32(payload->track_index));
-            IAP_LOGF("  chapter=%u", swap_16(payload->chapter_index));
+            IAP_LOGF("  type=0x%02" PRIX8, payload->type);
+            IAP_LOGF("  track=%" PRIu32, swap_32(payload->track_index));
+            IAP_LOGF("  chapter=%" PRIu16, swap_16(payload->chapter_index));
         } break;
         case IAPDisplayRemoteCommandID_RetIndexedPlayingTrackInfo: {
             check_ret(span.size > 1, );
-            IAP_LOGF("  type=0x%02X", span.ptr[0]);
+            IAP_LOGF("  type=0x%02" PRIX8, span.ptr[0]);
             switch(span.ptr[0]) {
             case IAPIndexedPlayingTrackInfoType_TrackCapsInfo: {
                 span_read(IAPRetIndexedPlayingTrackInfoTrackCapsInfoPayload);
-                IAP_LOGF("  caps=0x%04X", swap_32(payload->track_caps));
-                IAP_LOGF("  total=%ums", swap_32(payload->track_total_ms));
-                IAP_LOGF("  chapter_count=%u", swap_16(payload->chapter_count));
+                IAP_LOGF("  caps=0x%04" PRIX32, swap_32(payload->track_caps));
+                IAP_LOGF("  total=%" PRIu32 "ms", swap_32(payload->track_total_ms));
+                IAP_LOGF("  chapter_count=%" PRIu16, swap_16(payload->chapter_count));
             } break;
             case IAPIndexedPlayingTrackInfoType_ChapterTimeName: {
                 span_read(IAPRetIndexedPlayingTrackInfoChapterTimeNamePayload);
-                IAP_LOGF("  offset=%ums", swap_32(payload->offset_ms));
+                IAP_LOGF("  offset=%" PRIu32 "ms", swap_32(payload->offset_ms));
                 IAP_LOGF("  name=%s", _iap_span_as_str(&span));
             } break;
             case IAPIndexedPlayingTrackInfoType_ArtistName:
@@ -778,66 +779,66 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
             } break;
             case IAPIndexedPlayingTrackInfoType_Lyrics: {
                 span_read(IAPRetIndexedPlayingTrackInfoLyricsPayload);
-                IAP_LOGF("  info=0x%02X", payload->info_bits);
-                IAP_LOGF("  index=%u", swap_16(payload->index));
+                IAP_LOGF("  info=0x%02" PRIX8, payload->info_bits);
+                IAP_LOGF("  index=%" PRIu16, swap_16(payload->index));
                 IAP_LOGF("  lyrics=%s", _iap_span_as_str(&span));
             } break;
             case IAPIndexedPlayingTrackInfoType_ArtworkCount: {
                 span_read(IAPRetIndexedPlayingTrackInfoArtworkCountPayload);
                 while(span.size >= sizeof(struct IAPArtworkCount)) {
                     const struct IAPArtworkCount* count = iap_span_read(&span, sizeof(*count));
-                    IAP_LOGF("  format=%u, count=%d", swap_16(count->format), swap_16(count->count));
+                    IAP_LOGF("  format=%" PRIu16 ", count=%" PRIu16, swap_16(count->format), swap_16(count->count));
                 }
             } break;
             }
         } break;
         case IAPDisplayRemoteCommandID_RetNumPlayingTracks: {
             span_read(IAPRetNumPlayingTracksPayload);
-            IAP_LOGF("  tracks=%u", swap_32(payload->num_playing_tracks));
+            IAP_LOGF("  tracks=%" PRIu32, swap_32(payload->num_playing_tracks));
         } break;
         case IAPDisplayRemoteCommandID_RetArtworkFormats: {
             while(span.size >= sizeof(struct IAPArtworkFormat)) {
                 const struct IAPArtworkFormat* format = iap_span_read(&span, sizeof(*format));
-                IAP_LOGF("  id=%u, format=%u, width=%u, height=%u", swap_16(format->format_id), format->pixel_format, swap_16(format->image_width), swap_16(format->image_height));
+                IAP_LOGF("  id=%" PRIu16 ", format=%" PRIu8 ", width=%" PRIu16 ", height=%" PRIu16, swap_16(format->format_id), format->pixel_format, swap_16(format->image_width), swap_16(format->image_height));
             }
         } break;
         case IAPDisplayRemoteCommandID_GetTrackArtworkData: {
             span_read(IAPGetTrackArtworkDataPayload);
-            IAP_LOGF("  index=%u", swap_32(payload->track_index));
-            IAP_LOGF("  format=%u", payload->format_id);
-            IAP_LOGF("  offset=%ums", swap_32(payload->offset_ms));
+            IAP_LOGF("  index=%" PRIu32, swap_32(payload->track_index));
+            IAP_LOGF("  format=%" PRIu8, payload->format_id);
+            IAP_LOGF("  offset=%" PRIu32 "ms", swap_32(payload->offset_ms));
         } break;
         case IAPDisplayRemoteCommandID_RetTrackArtworkData: {
             uint16_t index;
             check_ret(iap_span_peek_16(&span, &index), );
             if(index == 0) {
                 span_read(IAPRetTrackArtworkDataFirstPayload);
-                IAP_LOGF("  index=%u", swap_16(payload->index));
-                IAP_LOGF("  format=%u", swap_16(payload->pixel_format));
-                IAP_LOGF("  width=%u", swap_16(payload->pixel_width));
-                IAP_LOGF("  height%u", swap_16(payload->pixel_height));
+                IAP_LOGF("  index=%" PRIu16, swap_16(payload->index));
+                IAP_LOGF("  format=%" PRIu16, swap_16(payload->pixel_format));
+                IAP_LOGF("  width=%" PRIu16, swap_16(payload->pixel_width));
+                IAP_LOGF("  height=%" PRIu16, swap_16(payload->pixel_height));
             } else {
                 span_read(IAPRetTrackArtworkDataSubsequenctPayload);
-                IAP_LOGF("  index=%u", swap_16(payload->index));
+                IAP_LOGF("  index=%" PRIu16, swap_16(payload->index));
             }
         } break;
         case IAPDisplayRemoteCommandID_RetPowerBatteryState: {
             span_read(IAPRetPowerBatteryStatePayload);
-            IAP_LOGF("  power_state=%u", payload->power_state);
-            IAP_LOGF("  battery_level=%u", payload->battery_level);
+            IAP_LOGF("  power_state=%" PRIu8, payload->power_state);
+            IAP_LOGF("  battery_level=%" PRIu8, payload->battery_level);
         } break;
         case IAPDisplayRemoteCommandID_GetTrackArtworkTimes: {
             span_read(IAPGetTrackArtworkTimesPayload);
-            IAP_LOGF("  index=%u", swap_32(payload->track_index));
-            IAP_LOGF("  format=%u", swap_16(payload->format_id));
-            IAP_LOGF("  artwork_index=%u", swap_32(payload->artwork_index));
-            IAP_LOGF("  artwork_count=%u", swap_32(payload->artwork_count));
+            IAP_LOGF("  index=%" PRIu32, swap_32(payload->track_index));
+            IAP_LOGF("  format=%" PRIu16, swap_16(payload->format_id));
+            IAP_LOGF("  artwork_index=%" PRIu32, swap_32(payload->artwork_index));
+            IAP_LOGF("  artwork_count=%" PRIu32, swap_32(payload->artwork_count));
         } break;
         case IAPDisplayRemoteCommandID_RetTrackArtworkTimes: {
             while(span.size >= sizeof(uint16_t)) {
                 uint16_t time;
                 iap_span_read_16(&span, &time);
-                IAP_LOGF("  time=%u", time);
+                IAP_LOGF("  time=%" PRIu16, time);
             }
         } break;
         }
@@ -847,50 +848,50 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
         case IAPExtendedInterfaceCommandID_IPodAck: {
             span_read(IAPExtendedIPodAckPayload);
             IAP_LOGF("  id=%s", _iap_command_str(lingo, swap_16(payload->id)));
-            IAP_LOGF("  status=0x%02X", payload->status);
+            IAP_LOGF("  status=0x%02" PRIX8, payload->status);
         } break;
         case IAPExtendedInterfaceCommandID_ReturnCurrentPlayingTrackChapterInfo: {
             span_read(IAPReturnCurrentPlayingTrackChapterInfoPayload);
-            IAP_LOGF("  count=%u", swap_32(payload->count));
-            IAP_LOGF("  index=%u", swap_32(payload->index));
+            IAP_LOGF("  count=%" PRIu32, swap_32(payload->count));
+            IAP_LOGF("  index=%" PRIu32, swap_32(payload->index));
         } break;
         case IAPExtendedInterfaceCommandID_RetAudiobookSpeed: {
             span_read(IAPRetAudiobookSpeedPayload);
-            IAP_LOGF("  speed=0x%02X", payload->speed);
+            IAP_LOGF("  speed=0x%02" PRIX8, payload->speed);
         } break;
         case IAPExtendedInterfaceCommandID_GetIndexedPlayingTrackInfo: {
             span_read(IAPExtendedGetIndexedPlayingTrackInfoPayload);
-            IAP_LOGF("  type=0x%02X", payload->type);
-            IAP_LOGF("  track=%u", swap_32(payload->track_index));
-            IAP_LOGF("  chapter=%u", swap_16(payload->chapter_index));
+            IAP_LOGF("  type=0x%02" PRIX8, payload->type);
+            IAP_LOGF("  track=%" PRIu32, swap_32(payload->track_index));
+            IAP_LOGF("  chapter=%" PRIu16, swap_16(payload->chapter_index));
         } break;
         case IAPExtendedInterfaceCommandID_ReturnIndexedPlayingTrackInfo: {
             check_ret(span.size > 1, );
-            IAP_LOGF("  type=0x%02X", span.ptr[0]);
+            IAP_LOGF("  type=0x%02" PRIX8, span.ptr[0]);
             switch(span.ptr[0]) {
             case IAPExtendedIndexedPlayingTrackInfoType_TrackCapsInfo: {
                 span_read(IAPExtendedRetIndexedPlayingTrackInfoTrackCapsInfoPayload);
-                IAP_LOGF("  caps=0x%04X", swap_32(payload->track_caps));
-                IAP_LOGF("  total=%ums", swap_32(payload->track_total_ms));
-                IAP_LOGF("  chapter_count=%u", swap_16(payload->chapter_count));
+                IAP_LOGF("  caps=0x%04" PRIX32, swap_32(payload->track_caps));
+                IAP_LOGF("  total=%" PRIu32 "ms", swap_32(payload->track_total_ms));
+                IAP_LOGF("  chapter_count=%" PRIu16, swap_16(payload->chapter_count));
             } break;
             case IAPExtendedIndexedPlayingTrackInfoType_PodcastName: {
                 IAP_LOGF("  str=%s", _iap_span_as_str(&span));
             } break;
             case IAPExtendedIndexedPlayingTrackInfoType_TrackReleaseDate: {
                 span_read(IAPExtendedRetIndexedPlayingTrackInfoTrackReleaseDatePayload);
-                IAP_LOGF("  release=%04d-%02d-%02d %02d:%02d.%02d", swap_16(payload->year), payload->month, payload->day, payload->hours, payload->minutes, payload->seconds);
+                IAP_LOGF("  release=%04" PRIu16 "-%02" PRIu8 "-%02" PRIu8 " %02" PRIu8 ":%02" PRIu8 ".%02" PRIu8, swap_16(payload->year), payload->month, payload->day, payload->hours, payload->minutes, payload->seconds);
             } break;
             case IAPExtendedIndexedPlayingTrackInfoType_TrackDescription: {
                 span_read(IAPExtendedRetIndexedPlayingTrackInfoTrackDescriptionPayload);
-                IAP_LOGF("  info=0x%02X", payload->info_bits);
-                IAP_LOGF("  index=%u", swap_16(payload->index));
+                IAP_LOGF("  info=0x%02" PRIX8, payload->info_bits);
+                IAP_LOGF("  index=%" PRIu8, swap_16(payload->index));
                 IAP_LOGF("  desc=%s", _iap_span_as_str(&span));
             } break;
             case IAPExtendedIndexedPlayingTrackInfoType_TrackSongLyrics: {
                 span_read(IAPExtendedRetIndexedPlayingTrackInfoTrackSongLyricsPayload);
-                IAP_LOGF("  info=0x%02X", payload->info_bits);
-                IAP_LOGF("  index=%u", swap_16(payload->index));
+                IAP_LOGF("  info=0x%02" PRIX8, payload->info_bits);
+                IAP_LOGF("  index=%u" PRIu16, swap_16(payload->index));
                 IAP_LOGF("  lyrics=%s", _iap_span_as_str(&span));
             } break;
             case IAPExtendedIndexedPlayingTrackInfoType_TrackGenre: {
@@ -903,7 +904,7 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
                 span_read(IAPRetIndexedPlayingTrackInfoArtworkCountPayload);
                 while(span.size >= sizeof(struct IAPArtworkCount)) {
                     const struct IAPArtworkCount* count = iap_span_read(&span, sizeof(*count));
-                    IAP_LOGF("  format=%u, count=%d", swap_16(count->format), swap_16(count->count));
+                    IAP_LOGF("  format=%" PRIu16 ", count=%" PRIu16, swap_16(count->format), swap_16(count->count));
                 }
             } break;
             }
@@ -911,52 +912,52 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
         case IAPExtendedInterfaceCommandID_RetArtworkFormats: {
             while(span.size >= sizeof(struct IAPArtworkFormat)) {
                 const struct IAPArtworkFormat* format = iap_span_read(&span, sizeof(*format));
-                IAP_LOGF("  id=%u, format=%u, width=%u, height=%u", swap_16(format->format_id), format->pixel_format, swap_16(format->image_width), swap_16(format->image_height));
+                IAP_LOGF("  id=%" PRIu16 ", format=%" PRIu8 ", width=%" PRIu16 ", height=%" PRIu16, swap_16(format->format_id), format->pixel_format, swap_16(format->image_width), swap_16(format->image_height));
             }
         } break;
         case IAPExtendedInterfaceCommandID_GetTrackArtworkData: {
             span_read(IAPGetTrackArtworkDataPayload);
-            IAP_LOGF("  index=%u", swap_32(payload->track_index));
-            IAP_LOGF("  format=%u", payload->format_id);
-            IAP_LOGF("  offset=%ums", swap_32(payload->offset_ms));
+            IAP_LOGF("  index=%" PRIu32, swap_32(payload->track_index));
+            IAP_LOGF("  format=%" PRIu8, payload->format_id);
+            IAP_LOGF("  offset=%" PRIu32 "ms", swap_32(payload->offset_ms));
         } break;
         case IAPExtendedInterfaceCommandID_RetTrackArtworkData: {
             uint16_t index;
             check_ret(iap_span_peek_16(&span, &index), );
             if(index == 0) {
                 span_read(IAPRetTrackArtworkDataFirstPayload);
-                IAP_LOGF("  index=%u", swap_16(payload->index));
-                IAP_LOGF("  format=%u", swap_16(payload->pixel_format));
-                IAP_LOGF("  width=%u", swap_16(payload->pixel_width));
-                IAP_LOGF("  height%u", swap_16(payload->pixel_height));
+                IAP_LOGF("  index=%" PRIu16, swap_16(payload->index));
+                IAP_LOGF("  format=%" PRIu16, swap_16(payload->pixel_format));
+                IAP_LOGF("  width=%" PRIu16, swap_16(payload->pixel_width));
+                IAP_LOGF("  height=%" PRIu16, swap_16(payload->pixel_height));
             } else {
                 span_read(IAPRetTrackArtworkDataSubsequenctPayload);
-                IAP_LOGF("  index=%u", swap_16(payload->index));
+                IAP_LOGF("  index=%" PRIu16, swap_16(payload->index));
             }
         } break;
         case IAPExtendedInterfaceCommandID_GetNumberCategorizedDBRecords: {
             span_read(IAPGetNumberCategorizedDBRecordsPayload);
-            IAP_LOGF("  type=0x%02X", payload->type);
+            IAP_LOGF("  type=0x%02" PRIX8, payload->type);
         } break;
         case IAPExtendedInterfaceCommandID_ReturnNumberCategorizedDBRecords: {
             span_read(IAPReturnNumberCategorizedDBRecordsPayload);
-            IAP_LOGF("  count=%u", swap_32(payload->count));
+            IAP_LOGF("  count=%" PRIu32, swap_32(payload->count));
         } break;
         case IAPExtendedInterfaceCommandID_ReturnPlayStatus: {
             span_read(IAPExtendedRetPlayStatusPayload);
-            IAP_LOGF("  state=0x%02X", payload->state);
-            IAP_LOGF("  pos=%ums", swap_32(payload->track_pos_ms));
-            IAP_LOGF("  total=%ums", swap_32(payload->track_total_ms));
+            IAP_LOGF("  state=0x%02" PRIX8, payload->state);
+            IAP_LOGF("  pos=%" PRIu32 "ms", swap_32(payload->track_pos_ms));
+            IAP_LOGF("  total=%" PRIu32 "ms", swap_32(payload->track_total_ms));
         } break;
         case IAPExtendedInterfaceCommandID_ReturnCurrentPlayingTrackIndex: {
             span_read(IAPReturnCurrentPlayingTrackIndexPayload);
-            IAP_LOGF("  index=%u", swap_32(payload->index));
+            IAP_LOGF("  index=%" PRIu32, swap_32(payload->index));
         } break;
         case IAPExtendedInterfaceCommandID_GetIndexedPlayingTrackTitle:
         case IAPExtendedInterfaceCommandID_GetIndexedPlayingTrackArtistName:
         case IAPExtendedInterfaceCommandID_GetIndexedPlayingTrackAlbumName: {
             span_read(IAPGetIndexedPlayingTrackStringPayload);
-            IAP_LOGF("  index=%u", swap_32(payload->index));
+            IAP_LOGF("  index=%" PRIu32, swap_32(payload->index));
         } break;
         case IAPExtendedInterfaceCommandID_ReturnIndexedPlayingTrackTitle:
         case IAPExtendedInterfaceCommandID_ReturnIndexedPlayingTrackArtistName:
@@ -966,58 +967,58 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
         case IAPExtendedInterfaceCommandID_SetPlayStatusChangeNotification: {
             if(span.size == sizeof(struct IAPSetPlayStatusChangeNotification1BytePayload)) {
                 span_read(IAPSetPlayStatusChangeNotification1BytePayload);
-                IAP_LOGF("  enable=%u", payload->enable);
+                IAP_LOGF("  enable=%" PRIu8, payload->enable);
             } else {
                 span_read(IAPSetPlayStatusChangeNotification4BytesPayload);
-                IAP_LOGF("  mask=0x%08X", swap_32(payload->mask));
+                IAP_LOGF("  mask=0x%08" PRIX32, swap_32(payload->mask));
             }
         } break;
         case IAPExtendedInterfaceCommandID_PlayControl: {
             span_read(IAPPlayControlPayload);
-            IAP_LOGF("  code=0x%02X", payload->code);
+            IAP_LOGF("  code=0x%02" PRIX8, payload->code);
         } break;
         case IAPExtendedInterfaceCommandID_ReturnShuffle: {
             span_read(IAPReturnShufflePayload);
-            IAP_LOGF("  mode=%u", payload->mode);
+            IAP_LOGF("  mode=%" PRIu8, payload->mode);
         } break;
         case IAPExtendedInterfaceCommandID_SetShuffle: {
             span_read(IAPSetShufflePayload);
-            IAP_LOGF("  mode=%u", payload->mode);
-            IAP_LOGF("  roe=%d", payload->restore_on_exit);
+            IAP_LOGF("  mode=%" PRIu8, payload->mode);
+            IAP_LOGF("  roe=%" PRIu8, payload->restore_on_exit);
         } break;
         case IAPExtendedInterfaceCommandID_ReturnRepeat: {
             span_read(IAPReturnRepeatPayload);
-            IAP_LOGF("  mode=%u", payload->mode);
+            IAP_LOGF("  mode=%" PRIu8, payload->mode);
         } break;
         case IAPExtendedInterfaceCommandID_SetRepeat: {
             span_read(IAPSetRepeatPayload);
-            IAP_LOGF("  mode=%u", payload->mode);
-            IAP_LOGF("  roe=%d", payload->restore_on_exit);
+            IAP_LOGF("  mode=%" PRIu8, payload->mode);
+            IAP_LOGF("  roe=%" PRIu8, payload->restore_on_exit);
         } break;
         case IAPExtendedInterfaceCommandID_SetDisplayImage: {
             uint16_t index;
             check_ret(iap_span_peek_16(&span, &index), );
-            IAP_LOGF("  index=%u", index);
+            IAP_LOGF("  index=%" PRIu16, index);
             if(index == 0) {
                 span_read(IAPSetDisplayImageFirstPayload);
-                IAP_LOGF("  format=%02X", payload->pixel_format);
-                IAP_LOGF("  width=%u", swap_16(payload->pixel_width));
-                IAP_LOGF("  height=%u", swap_16(payload->pixel_height));
+                IAP_LOGF("  format=%02" PRIX8, payload->pixel_format);
+                IAP_LOGF("  width=%" PRIu16, swap_16(payload->pixel_width));
+                IAP_LOGF("  height=%" PRIu16, swap_16(payload->pixel_height));
             }
         } break;
         case IAPExtendedInterfaceCommandID_ReturnNumPlayingTracks: {
             span_read(IAPRetNumPlayingTracksPayload);
-            IAP_LOGF("  tracks=%u", swap_32(payload->num_playing_tracks));
+            IAP_LOGF("  tracks=%" PRIu32, swap_32(payload->num_playing_tracks));
         } break;
         case IAPExtendedInterfaceCommandID_SetCurrentPlayingTrack: {
             span_read(IAPSetCurrentPlayingTrackPayload);
-            IAP_LOGF("  index=%u", swap_32(payload->index));
+            IAP_LOGF("  index=%" PRIu32, swap_32(payload->index));
         } break;
         case IAPExtendedInterfaceCommandID_ReturnColorDisplayImageLimits: {
             span_read(IAPColorDisplayImageLimit);
-            IAP_LOGF("  width=%u", swap_16(payload->max_width));
-            IAP_LOGF("  height=%u", swap_16(payload->max_height));
-            IAP_LOGF("  format=0x%02X", payload->pixel_format);
+            IAP_LOGF("  width=%" PRIu16, swap_16(payload->max_width));
+            IAP_LOGF("  height=%" PRIu16, swap_16(payload->max_height));
+            IAP_LOGF("  format=0x%02" PRIX8, payload->pixel_format);
         } break;
         }
         break;
@@ -1026,13 +1027,13 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
         case IAPDigitalAudioCommandID_AccessoryAck: {
             span_read(IAPAccAckPayload);
             IAP_LOGF("  id=%s", _iap_command_str(lingo, payload->id));
-            IAP_LOGF("  status=0x%02X", payload->status);
+            IAP_LOGF("  status=0x%02" PRIX8, payload->status);
         } break;
         case IAPDigitalAudioCommandID_RetAccessorySampleRateCaps: {
             while(span.size >= sizeof(uint32_t)) {
                 uint32_t sample_rate;
                 iap_span_read_32(&span, &sample_rate);
-                IAP_LOGF("  rate=%u", sample_rate);
+                IAP_LOGF("  rate=%" PRIu32, sample_rate);
             }
         } break;
         }
