@@ -291,6 +291,7 @@ const char* _iap_span_as_str(const struct IAPSpan* span) {
     return _iap_span_is_str(span) ? (char*)span->ptr : "(invalid)";
 }
 
+#if !defined(IAP_LOGF_MUTED)
 void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct IAPSpan span) {
     const char* lingo_str   = _iap_lingo_str_or_null(lingo);
     const char* command_str = _iap_command_str_or_null(lingo, command);
@@ -1041,3 +1042,11 @@ void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct 
     }
 #undef span_read
 }
+#else
+void _iap_dump_packet(uint8_t lingo, uint16_t command, int32_t trans_id, struct IAPSpan span) {
+    (void)lingo;
+    (void)command;
+    (void)trans_id;
+    (void)span;
+}
+#endif
