@@ -1,5 +1,6 @@
 #include <fcntl.h>
 #include <string.h>
+#include <sys/random.h>
 #include <unistd.h>
 
 #include "artwork.hpp"
@@ -27,6 +28,13 @@ int iap_platform_send_hid_report(struct IAPContext* iap_ctx, const void* ptr, si
     const auto& ctx = *((struct Context*)iap_ctx->platform);
     // dump_hex(std::span{(uint8_t*)ptr, size});
     return write(ctx.fd, ptr, size);
+}
+
+void iap_platform_get_random(struct IAPContext* iap_ctx, void* ptr, size_t size) {
+    (void)iap_ctx;
+    if(getrandom(ptr, size, 0) != (ssize_t)size) {
+        memset(ptr, 0, size);
+    }
 }
 
 IAPBool iap_platform_get_ipod_serial_num(struct IAPContext* iap_ctx, struct IAPSpan* serial) {
