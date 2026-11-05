@@ -50,7 +50,7 @@ const auto input_report_size_table_hs = std::array{
 const auto output_report_size_table_hs = std::array{
     ReportSize{.id = 0x0D, .size = 0x05},
     ReportSize{.id = 0x0E, .size = 0x09},
-    ReportSize{.id = 0x1F, .size = 0x0D},
+    ReportSize{.id = 0x0F, .size = 0x0D},
     ReportSize{.id = 0x10, .size = 0x11},
     ReportSize{.id = 0x11, .size = 0x19},
     ReportSize{.id = 0x12, .size = 0x31},
